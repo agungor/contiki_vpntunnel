@@ -360,6 +360,7 @@ PROCESS_THREAD(border_router_process, ev, data)
   ip64_init();
 
   PRINTF("RPL-Border router started\n");
+  PRINTF("RPL_CONF_DEFAULT_INSTANCE: %d\n", RPL_CONF_DEFAULT_INSTANCE);
 #if 0
    /* The border router runs with a 100% duty cycle in order to ensure high
      packet reception rates.
