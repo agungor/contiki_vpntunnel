@@ -71,7 +71,8 @@
 static const char *broker_ip = MQTT_DEMO_BROKER_IP_ADDR;
 #define DEFAULT_ORG_ID              "mqtt-demo"
 #else
-static const char *broker_ip = "0064:ff9b:0000:0000:0000:0000:b8ac:7cbd";
+//static const char *broker_ip = "0064:ff9b:0000:0000:0000:0000:b8ac:7cbd";
+static const char *broker_ip = "0064:ff9b:0000:0000:0000:0000:c0a8:0197";
 #define DEFAULT_ORG_ID              "quickstart"
 #endif
 /*---------------------------------------------------------------------------*/
@@ -517,6 +518,7 @@ static void
 connect_to_broker(void)
 {
   /* Connect to MQTT server */
+  printf("broker ip address:%s\n", conf.broker_ip);
   mqtt_connect(&conn, conf.broker_ip, conf.broker_port,
                conf.pub_interval * 3);
 
@@ -693,7 +695,7 @@ PROCESS_THREAD(mqtt_demo_process, ev, data)
   //SENSORS_ACTIVATE(pulse_sensor);;
   leds_init();
   printf("MQTT Demo Process\n");
-
+  printf("RPL_CONF_DEFAULT_INSTANCE: %d\n", RPL_CONF_DEFAULT_INSTANCE);
   if(init_config() != 1) {
     PROCESS_EXIT();
   }
