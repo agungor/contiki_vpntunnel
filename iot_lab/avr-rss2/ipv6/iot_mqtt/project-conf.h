@@ -55,11 +55,12 @@
 #define NETSTACK_CONF_FRAMER      framer_802154
 #define NETSTACK_CONF_RADIO       rf230_driver
 
-#define MQTT_DEMO_BROKER_IP_ADDR "0064:ff9b::c010:7d27" 
+//#define MQTT_DEMO_BROKER_IP_ADDR "0064:ff9b::c010:7d27"
+#define MQTT_DEMO_BROKER_IP_ADDR "0064:ff9b::c0a8:0197"
 #define BOARD_STRING  "LAB5"
 #define RPL_CONF_DEFAULT_INSTANCE 0x1d
-#define IEEE802154_CONF_PANID 0xABBA
-#define CHANNEL_CONF_802_15_4 25
+#define IEEE802154_CONF_PANID 0xABCD
+#define CHANNEL_CONF_802_15_4 26
 
 /*---------------------------------------------------------------------------*/
 #endif /* PROJECT_CONF_H_ */
