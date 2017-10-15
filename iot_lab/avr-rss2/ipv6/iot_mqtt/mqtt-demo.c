@@ -72,7 +72,7 @@ static const char *broker_ip = MQTT_DEMO_BROKER_IP_ADDR;
 #define DEFAULT_ORG_ID              "mqtt-demo"
 #else
 //static const char *broker_ip = "0064:ff9b:0000:0000:0000:0000:b8ac:7cbd";
-static const char *broker_ip = "0064:ff9b:0000:0000:0000:0000:c0a8:0197";
+static const char *broker_ip = MQTT_DEMO_BROKER_IP_ADDR;
 #define DEFAULT_ORG_ID              "quickstart"
 #endif
 /*---------------------------------------------------------------------------*/
