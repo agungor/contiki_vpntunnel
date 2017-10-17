@@ -60,6 +60,15 @@
 
 #define RPL_CONF_DEFAULT_ROUTE_INFINITE_LIFETIME 1
 
+#define NETSTACK_CONF_MAC         nullmac_driver
+#define NETSTACK_CONF_RDC         nullrdc_driver
+#define NETSTACK_CONF_FRAMER      framer_802154
+#define NETSTACK_CONF_RADIO       rf230_driver
+
+#define RPL_CONF_DEFAULT_INSTANCE 0x1d
+#define IEEE802154_CONF_PANID 0xABCD
+#define CHANNEL_CONF_802_15_4 26
+
 #if WITH_NON_STORING
 #undef RPL_NS_CONF_LINK_NUM
 #define RPL_NS_CONF_LINK_NUM 40 /* Number of links maintained at the root. Can be set to 0 at non-root nodes. */
