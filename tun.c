@@ -34,7 +34,6 @@ AUTOSTART_PROCESSES(&tun_process);
 static void
 tcpip_handler(void)
 {
- }
 }
 
 /*This function (print_global_address) is copied from contiki/examples/ipv6/rpl-udp/udp-client.c*/
