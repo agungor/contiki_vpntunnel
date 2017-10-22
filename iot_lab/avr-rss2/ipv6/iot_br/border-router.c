@@ -55,7 +55,7 @@
 #include <string.h>
 #include <ctype.h>
 
-#define DEBUG DEBUG_PRINT
+#define DEBUG DEBUG_FULL
 #include "net/ip/uip-debug.h"
 
 static uip_ipaddr_t prefix;
@@ -375,8 +375,7 @@ PROCESS_THREAD(border_router_process, ev, data)
   NETSTACK_MAC.off(1);
 
 /* Derived from link local (MAC) address */
-  //uip_ip6addr(&ipaddr, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0, 0, 0, 0);
-  uip_ip6addr(&ipaddr, 0xfd02, 0, 0, 0, 0, 0, 0, 0);
+  uip_ip6addr(&ipaddr, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0, 0, 0, 0);
   set_prefix_64(&ipaddr);
   print_local_addresses();
 

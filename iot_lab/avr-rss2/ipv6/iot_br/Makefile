@@ -10,6 +10,7 @@ CFLAGS += -DPROJECT_CONF_H=\"project-conf.h\"
 PROJECT_SOURCEFILES += eth-bridge.c
 #PROJECT_SOURCEFILES += enc28j60.c
 PROJECT_SOURCEFILES += enc28j60-ip64-driver.c
+#PROJECT_SOURCEFILES += commands.c #ARMAN 
 
 APPS += ping6
 APPS += cli
@@ -32,6 +33,7 @@ WITH_WEBSERVER=1
 ifeq ($(WITH_WEBSERVER),1)
 CFLAGS += -DUIP_CONF_TCP=1
 CFLAGS += -DWEBSERVER=1
+CFLAGS += -DDEBUG=2 #ARMAN
 PROJECT_SOURCEFILES += httpd-simple.c
 PROJECT_SOURCEFILES += commands.c #AG: does not compile without this
 else ifneq ($(WITH_WEBSERVER), 0)
