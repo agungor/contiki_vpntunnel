@@ -39,27 +39,33 @@
 
 #ifdef TEST_MORE_ROUTES
 /* configure number of neighbors and routes */
-#define NBR_TABLE_CONF_MAX_NEIGHBORS     10
-#define UIP_CONF_MAX_ROUTES   30
+//#define NBR_TABLE_CONF_MAX_NEIGHBORS     10
+//#define UIP_CONF_MAX_ROUTES   30
 #else
 /* configure number of neighbors and routes */
-#define NBR_TABLE_CONF_MAX_NEIGHBORS     10
-#define UIP_CONF_MAX_ROUTES   10
+//#define NBR_TABLE_CONF_MAX_NEIGHBORS     10
+//#define UIP_CONF_MAX_ROUTES   10
 #endif /* TEST_MORE_ROUTES */
 
 #undef NETSTACK_CONF_RDC
 #define NETSTACK_CONF_RDC     nullrdc_driver
 #undef NULLRDC_CONF_802154_AUTOACK
-#define NULLRDC_CONF_802154_AUTOACK       1
+#define NULLRDC_CONF_802154_AUTOACK       0
+#define NULLRDC_CONF_802154_AUTOACK_HW    1
 
-/* Define as minutes */
-#define RPL_CONF_DEFAULT_LIFETIME_UNIT   60
+/* IOT-LAB1: Use IEEE 802.15.4 frame format
+   This is required for wireshark to display the IEEE 802.15.4 messages correctly.
+*/
 
-/* 10 minutes lifetime of routes */
-#define RPL_CONF_DEFAULT_LIFETIME        10
+/*ARMAN
+#undef NETSTACK_CONF_FRAMER
+#define NETSTACK_CONF_FRAMER	framer_802154
 
-#define RPL_CONF_DEFAULT_ROUTE_INFINITE_LIFETIME 1
+#undef NETSTACK_CONF_MAC
+#define NETSTACK_CONF_MAC	csma_driver
+ARMAN*/
 
+//ARMAN
 #define NETSTACK_CONF_MAC         nullmac_driver
 #define NETSTACK_CONF_RDC         nullrdc_driver
 #define NETSTACK_CONF_FRAMER      framer_802154
@@ -68,6 +74,15 @@
 #define RPL_CONF_DEFAULT_INSTANCE 0x1d
 #define IEEE802154_CONF_PANID 0xABCD
 #define CHANNEL_CONF_802_15_4 26
+//ARMAN
+
+/* Define as minutes */
+#define RPL_CONF_DEFAULT_LIFETIME_UNIT   60
+
+/* 10 minutes lifetime of routes */
+#define RPL_CONF_DEFAULT_LIFETIME        10
+
+#define RPL_CONF_DEFAULT_ROUTE_INFINITE_LIFETIME 1
 
 #if WITH_NON_STORING
 #undef RPL_NS_CONF_LINK_NUM

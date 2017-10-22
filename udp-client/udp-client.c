@@ -107,10 +107,8 @@ send_packet(void *ptr)
   seq_id++;
   PRINTF("DATA send to ");
   PRINT6ADDR(&server_ipaddr);
-  PRINTF("\n");
-  PRINTF("DATA send to %d 'Hello %d'\n",
-         server_ipaddr.u8[sizeof(server_ipaddr.u8) - 1], seq_id);
-  sprintf(buf, "Hello %d from the client", seq_id);
+  PRINTF(" 'Message from node[8263] %d'\n", seq_id);
+  sprintf(buf, "Message from node[8263] %d", seq_id);
   uip_udp_packet_sendto(client_conn, buf, strlen(buf),
                         &server_ipaddr, UIP_HTONS(UDP_SERVER_PORT));
 }
@@ -145,8 +143,33 @@ set_global_address(void)
   uip_ds6_set_addr_iid(&ipaddr, &uip_lladdr);
   uip_ds6_addr_add(&ipaddr, 0, ADDR_AUTOCONF);
 
-  uip_ip6addr(&server_ipaddr, 0x0000, 0, 0, 0, 0, 0xffff, 0xc0a8, 0x0197); //192.168.1.151 host address
-
+/* The choice of server address determines its 6LoWPAN header compression.
+ * (Our address will be compressed Mode 3 since it is derived from our
+ * link-local address)
+ * Obviously the choice made here must also be selected in udp-server.c.
+ *
+ * For correct Wireshark decoding using a sniffer, add the /64 prefix to the
+ * 6LowPAN protocol preferences,
+ * e.g. set Context 0 to fd00::. At present Wireshark copies Context/128 and
+ * then overwrites it.
+ * (Setting Context 0 to fd00::1111:2222:3333:4444 will report a 16 bit
+ * compressed address of fd00::1111:22ff:fe33:xxxx)
+ *
+ * Note the IPCMV6 checksum verification depends on the correct uncompressed
+ * addresses.
+ */
+ 
+#if 0
+/* Mode 1 - 64 bits inline */
+   uip_ip6addr(&server_ipaddr, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0, 0, 0, 1);
+#elif 1
+/* Mode 2 - 16 bits inline */
+  //uip_ip6addr(&server_ipaddr, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0, 0x00ff, 0xfe00, 1);
+   uip_ip6addr(&server_ipaddr, 0x0000, 0, 0, 0, 0, 0xffff, 0xc0a8, 0x0197);
+#else
+/* Mode 3 - derived from server link-local (MAC) address */
+  uip_ip6addr(&server_ipaddr, UIP_DS6_DEFAULT_PREFIX, 0, 0, 0, 0x0250, 0xc2ff, 0xfea8, 0xcd1a); //redbee-econotag
+#endif
 }
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(udp_client_process, ev, data)
@@ -168,6 +191,13 @@ PROCESS_THREAD(udp_client_process, ev, data)
 
   print_local_addresses();
 
+/* 15s WAIT before start UDP connection */
+PRINTF("WAIT 15 sec before starting UDP client\n");
+etimer_set(&periodic, SEND_INTERVAL*3);
+PROCESS_YIELD();
+if(etimer_expired(&periodic)) {
+	
+
   /* new connection with remote host */
   client_conn = udp_new(NULL, UIP_HTONS(UDP_SERVER_PORT), NULL); 
   if(client_conn == NULL) {
@@ -184,6 +214,8 @@ PROCESS_THREAD(udp_client_process, ev, data)
 #if WITH_COMPOWER
   powertrace_sniff(POWERTRACE_ON);
 #endif
+
+} /* END: if(etimer_expired(&periodic) */
 
   etimer_set(&periodic, SEND_INTERVAL);
   while(1) {
