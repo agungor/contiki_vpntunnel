@@ -33,7 +33,7 @@
 #define TUNNEL_CONF_H
 
 #include "net/iptunnel/tunnel-eth-interface.h"
-#include "dev/enc28j60/enc28j60-tunnel-driver.h"
+#include "dev/enc28j60_tunnel/enc28j60-tunnel-driver.h"
 #define TUNNEL_CONF_UIP_FALLBACK_INTERFACE tunnel_eth_interface
 #define TUNNEL_CONF_INPUT                  tunnel_eth_interface_input
 #define TUNNEL_CONF_DHCP                   1

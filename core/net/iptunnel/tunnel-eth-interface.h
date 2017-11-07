@@ -29,8 +29,8 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#ifndef IP64_ETH_INTERFACE_H
-#define IP64_ETH_INTERFACE_H
+#ifndef TUNNEL_ETH_INTERFACE_H
+#define TUNNEL_ETH_INTERFACE_H
 
 #include "net/ip/uip.h"
 

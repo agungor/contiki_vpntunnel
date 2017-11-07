@@ -34,10 +34,10 @@
 #include "ip64-dhcpc.h"
 
 #include "ip64.h"
-#include "ip64-eth.h"
 #include "ip64-addr.h"
 
 #include <stdio.h>
+#include "tunnel-eth.h"
 
 #define DEBUG DEBUG_NONE
 #include "net/ip/uip-debug.h"

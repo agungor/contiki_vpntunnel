@@ -31,16 +31,16 @@
 
 #include "contiki.h"
 #include "enc28j60.h"
-#include "enc28j60-ip64-driver.h"
+#include "enc28j60-tunnel-driver.h"
 
-#include "ip64.h"
-#include "ip64-eth.h"
+#include "tunnel.h"
+#include "tunnel-eth.h"
 #include "rime.h"
 
 #include <string.h>
 #include <stdio.h>
 
-PROCESS(enc28j60_ip64_driver_process, "ENC28J60 IP64 driver");
+PROCESS(enc28j60_tunnel_driver_process, "ENC28J60 TUNNEL driver");
 
 /*---------------------------------------------------------------------------*/
 static void
@@ -63,13 +63,13 @@ init(void)
   /* Set the U/L bit, in order to create a locally administered MAC address */
   macaddr[0] = (macaddr[0] | 0x02);
 
-  memcpy(ip64_eth_addr.addr, macaddr, sizeof(macaddr));
+  memcpy(tunnel_eth_addr.addr, macaddr, sizeof(macaddr));
 
   printf("MAC addr %02x:%02x:%02x:%02x:%02x:%02x\n",
          macaddr[0], macaddr[1], macaddr[2],
          macaddr[3], macaddr[4], macaddr[5]);
   enc28j60_init(macaddr);
-  process_start(&enc28j60_ip64_driver_process, NULL);
+  process_start(&enc28j60_tunnel_driver_process, NULL);
 }
 /*---------------------------------------------------------------------------*/
 static int
@@ -79,7 +79,7 @@ output(uint8_t *packet, uint16_t len)
   return len;
 }
 /*---------------------------------------------------------------------------*/
-PROCESS_THREAD(enc28j60_ip64_driver_process, ev, data)
+PROCESS_THREAD(enc28j60_tunnel_driver_process, ev, data)
 {
   static int len;
   static struct etimer e;
@@ -88,16 +88,16 @@ PROCESS_THREAD(enc28j60_ip64_driver_process, ev, data)
   while(1) {
     etimer_set(&e, 1);
     PROCESS_WAIT_EVENT();
-    len = enc28j60_read(ip64_packet_buffer, ip64_packet_buffer_maxlen);
+    len = enc28j60_read(tunnel_packet_buffer, tunnel_packet_buffer_maxlen);
     if(len > 0) {
-      IP64_INPUT(ip64_packet_buffer, len);
+      TUNNEL_INPUT(tunnel_packet_buffer, len);
     }
   }
 
   PROCESS_END();
 }
 /*---------------------------------------------------------------------------*/
-const struct ip64_driver enc28j60_ip64_driver = {
+const struct tunnel_driver enc28j60_tunnel_driver = {
   init,
   output
 };

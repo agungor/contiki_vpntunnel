@@ -40,7 +40,7 @@
 #include "contiki-net.h"
 #include "net/ip/uip.h"
 #include "net/ipv6/uip-ds6.h"
-#include "ip64.h"
+#include "tunnel.h"
 #include "net/rpl/rpl.h"
 #include "enc28j60.h"
 #include "net/netstack.h"
@@ -53,7 +53,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include "../tunnel_br/enc28j60-ip64-driver.h"
+#include "../tunnel_br/enc28j60-tunnel-driver.h"
 
 #define DEBUG DEBUG_FULL
 #include "net/ip/uip-debug.h"

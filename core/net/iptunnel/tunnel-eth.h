@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, Thingsquare, http://www.thingsquare.com/.
+ * Copyright (c) 2012, Thingsquare, http://www.thingsquare.com/.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,6 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ *
  * 3. Neither the name of the copyright holder nor the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
@@ -28,11 +29,34 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
+#ifndef TUNNEL_ETH_H
+#define TUNNEL_ETH_H
 
-#ifndef ENC28J60_IP64_DRIVER_H
-#define ENC28J60_IP64_DRIVER_H
+#include "contiki-conf.h"
 
-#include "ip64-driver.h"
-extern const struct ip64_driver enc28j60_ip64_driver;
+/**
+ * The Ethernet address.
+ */
+struct tunnel_eth_addr {
+  uint8_t addr[6];
+};
 
-#endif /* ENC28J60_IP64_DRIVER_H */
+extern struct tunnel_eth_addr tunnel_eth_addr;
+
+void tunnel_eth_addr_set(struct tunnel_eth_addr *addr);
+
+/**
+ * The Ethernet header.
+ */
+struct tunnel_eth_hdr {
+  struct tunnel_eth_addr dest;
+  struct tunnel_eth_addr src;
+  uint16_t type;
+};
+
+#define TUNNEL_ETH_TYPE_ARP  0x0806
+#define TUNNEL_ETH_TYPE_IP   0x0800
+#define TUNNEL_ETH_TYPE_IPV6 0x86dd
+
+
+#endif /* TUNNEL_ETH_H */

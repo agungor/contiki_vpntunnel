@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013, Thingsquare, http://www.thingsquare.com/.
+ * Copyright (c) 2012, Thingsquare, http://www.thingsquare.com/.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,6 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ *
  * 3. Neither the name of the copyright holder nor the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
@@ -28,11 +29,15 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
+#include <string.h>
+#include "tunnel-eth.h"
 
-#ifndef ENC28J60_TUNNEL_DRIVER_H
-#define ENC28J60_TUNNEL_DRIVER_H
+struct tunnel_eth_addr tunnel_eth_addr;
 
-#include "tunnel-driver.h"
-extern const struct tunnel_driver enc28j60_tunnel_driver;
-
-#endif /* ENC28J60_TUNNEL_DRIVER_H */
+/*---------------------------------------------------------------------------*/
+void
+ip64_eth_addr_set(struct tunnel_eth_addr *addr)
+{
+  memcpy(&tunnel_eth_addr, addr, sizeof(struct tunnel_eth_addr));
+}
+/*---------------------------------------------------------------------------*/

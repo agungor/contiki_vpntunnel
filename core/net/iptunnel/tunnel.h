@@ -29,8 +29,8 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#ifndef IP64_H
-#define IP64_H
+#ifndef TUNNEL_H
+#define TUNNEL_H
 
 #include "net/ip/uip.h"
 
@@ -59,30 +59,30 @@ extern uint16_t tunnel_packet_buffer_maxlen;
 
 #include "tunnel-conf.h"
 
-#ifndef IP64_CONF_ETH_DRIVER
-#error IP64_CONF_ETH_DRIVER must be #defined in tunnel-conf.h
-#else /* IP64_CONF_ETH_DRIVER */
-#define IP64_ETH_DRIVER IP64_CONF_ETH_DRIVER
-#endif /* IP64_CONF_ETH_DRIVER */
+#ifndef TUNNEL_CONF_ETH_DRIVER
+#error TUNNEL_CONF_ETH_DRIVER must be #defined in tunnel-conf.h
+#else /* TUNNEL_CONF_ETH_DRIVER */
+#define TUNNEL_ETH_DRIVER TUNNEL_CONF_ETH_DRIVER
+#endif /* TUNNEL_CONF_ETH_DRIVER */
 
-#ifndef IP64_CONF_INPUT
-#error IP64_CONF_INPUT must be #defined in tunnel-conf.h
-#else /* IP64_CONF_INPUT */
-#define IP64_INPUT IP64_CONF_INPUT
-#endif /* IP64_CONF_INPUT */
+#ifndef TUNNEL_CONF_INPUT
+#error TUNNEL_CONF_INPUT must be #defined in tunnel-conf.h
+#else /* TUNNEL_CONF_INPUT */
+#define TUNNEL_INPUT TUNNEL_CONF_INPUT
+#endif /* TUNNEL_CONF_INPUT */
 
-#ifndef IP64_CONF_UIP_FALLBACK_INTERFACE
-#error IP64_CONF_UIP_FALLBACK_INTERFACE must be #defined in tunnel-conf.h
-#else /* IP64_CONF_UIP_FALLBACK_INTERFACE */
-#define IP64_UIP_FALLBACK_INTERFACE IP64_CONF_UIP_FALLBACK_INTERFACE
-#endif /* IP64_CONF_UIP_FALLBACK_INTERFACE */
+#ifndef TUNNEL_CONF_UIP_FALLBACK_INTERFACE
+#error TUNNEL_CONF_UIP_FALLBACK_INTERFACE must be #defined in tunnel-conf.h
+#else /* TUNNEL_CONF_UIP_FALLBACK_INTERFACE */
+#define TUNNEL_UIP_FALLBACK_INTERFACE TUNNEL_CONF_UIP_FALLBACK_INTERFACE
+#endif /* TUNNEL_CONF_UIP_FALLBACK_INTERFACE */
 
-#ifdef IP64_CONF_DHCP
-#define IP64_DHCP IP64_CONF_DHCP
-#else /* IP64_CONF_DHCP */
+#ifdef TUNNEL_CONF_DHCP
+#define TUNNEL_DHCP TUNNEL_CONF_DHCP
+#else /* TUNNEL_CONF_DHCP */
 /* Enable DHCP per default */
-#define IP64_DHCP 1
-#endif /* IP64_CONF_DHCP */
+#define TUNNEL_DHCP 1
+#endif /* TUNNEL_CONF_DHCP */
 
-#endif /* IP64_H */
+#endif /* TUNNEL_H */
 
