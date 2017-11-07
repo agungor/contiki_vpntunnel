@@ -12,7 +12,7 @@ static void
 init(void)
 {
   PRINTF("eth-bridge: init\n");
-  ip64_eth_interface.init();
+  tunnel_eth_interface.init();
 }
 /*---------------------------------------------------------------------------*/
 static int

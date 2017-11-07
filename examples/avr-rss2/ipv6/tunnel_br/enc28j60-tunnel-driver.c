@@ -29,7 +29,7 @@
  *
  */
 
-#include "../tunnel_br/enc28j60-ip64-driver.h"
+#include "../tunnel_br/enc28j60-tunnel-driver.h"
 
 #include "contiki.h"
 #include "enc28j60.h"
@@ -41,7 +41,7 @@
 #include <string.h>
 #include <stdio.h>
 
-PROCESS(enc28j60_ip64_driver_process, "ENC28J60 IP64 driver");
+PROCESS(enc28j60_ip64_driver_process, "ENC28J60 TUNNEL driver");
 
 /*---------------------------------------------------------------------------*/
 static void
