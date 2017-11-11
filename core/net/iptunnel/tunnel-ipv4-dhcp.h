@@ -29,9 +29,9 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#ifndef IP64_IPV4_DHCP_H
-#define IP64_IPV4_DHCP_H
+#ifndef TUNNEL_IPV4_DHCP_H
+#define TUNNEL_IPV4_DHCP_H
 
-void ip64_ipv4_dhcp_init(void);
+void tunnel_ipv4_dhcp_init(void);
 
-#endif /* IP64_IPV4_DHCP_H */
+#endif /* TUNNEL_IPV4_DHCP_H */

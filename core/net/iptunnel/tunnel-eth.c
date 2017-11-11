@@ -36,7 +36,7 @@ struct tunnel_eth_addr tunnel_eth_addr;
 
 /*---------------------------------------------------------------------------*/
 void
-ip64_eth_addr_set(struct tunnel_eth_addr *addr)
+tunnel_eth_addr_set(struct tunnel_eth_addr *addr)
 {
   memcpy(&tunnel_eth_addr, addr, sizeof(struct tunnel_eth_addr));
 }

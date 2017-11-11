@@ -182,10 +182,10 @@ tunnel_init(void)
   tunnel_hostaddr_configured = 0;
 
   PRINTF("tunnel_init\n");
-  IP64_ETH_DRIVER.init();
-#if IP64_DHCP
+  TUNNEL_ETH_DRIVER.init();
+#if TUNNEL_DHCP
   tunnel_ipv4_dhcp_init();
-#endif /* IP64_CONF_DHCP */
+#endif /* TUNNEL_CONF_DHCP */
 
   /* Specify an IPv6 address for local communication to the
      host. We'll just pick the first one we find in our list. */
@@ -889,14 +889,14 @@ tunnel_hostaddr_is_configured(void)
 static void
 interface_init(void)
 {
-  IP64_UIP_FALLBACK_INTERFACE.init();
+  TUNNEL_UIP_FALLBACK_INTERFACE.init();
 }
 /*---------------------------------------------------------------------------*/
 static int
 interface_output(void)
 {
   PRINTF("tunnel: interface_output len %d\n", uip_len);
-  IP64_UIP_FALLBACK_INTERFACE.output();
+  TUNNEL_UIP_FALLBACK_INTERFACE.output();
 
   return 0;
 }

@@ -51,16 +51,16 @@ tunnel_eth_interface_input(uint8_t *packet, uint16_t len)
   struct tunnel_eth_hdr *ethhdr;
   ethhdr = (struct tunnel_eth_hdr *)packet;
 
-  if(ethhdr->type == UIP_HTONS(IP64_ETH_TYPE_ARP)) {
+  if(ethhdr->type == UIP_HTONS(TUNNEL_ETH_TYPE_ARP)) {
     len = tunnel_arp_arp_input(packet, len);
 
     if(len > 0) {
-      IP64_ETH_DRIVER.output(packet, len);
+      TUNNEL_ETH_DRIVER.output(packet, len);
     }
-  } else if(ethhdr->type == UIP_HTONS(IP64_ETH_TYPE_IP) &&
+  } else if(ethhdr->type == UIP_HTONS(TUNNEL_ETH_TYPE_IP) &&
 	    len > sizeof(struct tunnel_eth_hdr)) {
     printf("-------------->\n");
-    uip_len = tunnel_4to6(&packet[sizeof(struct tunnel_eth_hdr)],
+    uip_len = tunnel_decap(&packet[sizeof(struct tunnel_eth_hdr)],
 			len - sizeof(struct tunnel_eth_hdr),
 			&uip_buf[UIP_LLH_LEN]);
     if(uip_len > 0) {
@@ -96,7 +96,7 @@ output(void)
   PRINTF("\n");
 
   printf("<--------------\n");
-  len = tunnel_6to4(&uip_buf[UIP_LLH_LEN], uip_len,
+  len = tunnel_decap(&uip_buf[UIP_LLH_LEN], uip_len,
 		  &tunnel_packet_buffer[sizeof(struct tunnel_eth_hdr)]);
 
   printf("tunnel-interface: output len %d\n", len);
@@ -107,13 +107,13 @@ output(void)
 				   &tunnel_packet_buffer[sizeof(struct tunnel_eth_hdr)]);
       if(ret > 0) {
 	len += ret;
-	IP64_ETH_DRIVER.output(tunnel_packet_buffer, len);
+	TUNNEL_ETH_DRIVER.output(tunnel_packet_buffer, len);
       }
     } else {
       printf("Create request\n");
       len = tunnel_arp_create_arp_request(tunnel_packet_buffer,
 					&tunnel_packet_buffer[sizeof(struct tunnel_eth_hdr)]);
-      return IP64_ETH_DRIVER.output(tunnel_packet_buffer, len);
+      return TUNNEL_ETH_DRIVER.output(tunnel_packet_buffer, len);
     }
   }
 
