@@ -1,3 +1,4 @@
+*.avr-rss2
 *.a
 *.bin
 *.map

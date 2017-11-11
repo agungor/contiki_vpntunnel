@@ -29,14 +29,38 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#ifndef TUNNEL_CONF_H
-#define TUNNEL_CONF_H
+#ifndef TUNNEL_ADDR_H
+#define TUNNEL_ADDR_H
 
-#include "net/tunnel/tunnel-eth-interface.h"
-#include "dev/enc28j60_tunnel/enc28j60-tunnel-driver.h"
-#define TUNNEL_CONF_UIP_FALLBACK_INTERFACE tunnel_eth_interface
-#define TUNNEL_CONF_INPUT                  tunnel_eth_interface_input
-#define TUNNEL_CONF_DHCP                   1
-#define TUNNEL_CONF_ETH_DRIVER             enc28j60_tunnel_driver
+#include "net/ip/uip.h"
 
-#endif /* TUNNEL_CONF_H */
+
+/**
+ * \brief Is IPv4-mapped Address
+ *
+ * See https://tools.ietf.org/html/rfc6890#page-14
+ */
+#define tunnel_addr_is_ipv4_mapped_addr(a) \
+  ((((a)->u16[0])  == 0) &&              \
+   (((a)->u16[1])  == 0) &&              \
+   (((a)->u16[2])  == 0) &&              \
+   (((a)->u16[3])  == 0) &&              \
+   (((a)->u16[4])  == 0) &&              \
+   (((a)->u16[5])  == 0xFFFF))
+
+void tunnel_addr_copy4(uip_ip4addr_t *dest, const uip_ip4addr_t *src);
+
+void tunnel_addr_copy6(uip_ip6addr_t *dest, const uip_ip6addr_t *src);
+
+int tunnel_addr_6to4(const uip_ip6addr_t *ipv6addr,
+		   uip_ip4addr_t *ipv4addr);
+
+int tunnel_addr_4to6(const uip_ip4addr_t *ipv4addr,
+		   uip_ip6addr_t *ipv6addr);
+
+int tunnel_addr_is_tunnel(const uip_ip6addr_t *ipv6addr);
+
+void tunnel_addr_set_prefix(const uip_ip6addr_t *prefix, uint8_t prefix_len);
+
+#endif /* IP64_ADDR_H */
+

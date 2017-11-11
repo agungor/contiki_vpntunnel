@@ -29,14 +29,22 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#ifndef TUNNEL_CONF_H
-#define TUNNEL_CONF_H
+#include "contiki-net.h"
 
-#include "net/tunnel/tunnel-eth-interface.h"
-#include "dev/enc28j60_tunnel/enc28j60-tunnel-driver.h"
-#define TUNNEL_CONF_UIP_FALLBACK_INTERFACE tunnel_eth_interface
-#define TUNNEL_CONF_INPUT                  tunnel_eth_interface_input
-#define TUNNEL_CONF_DHCP                   1
-#define TUNNEL_CONF_ETH_DRIVER             enc28j60_tunnel_driver
-
-#endif /* TUNNEL_CONF_H */
+#include "tunnel-driver.h"
+/*---------------------------------------------------------------------------*/
+static void
+init(void)
+{
+}
+/*---------------------------------------------------------------------------*/
+static int
+output(uint8_t *packet, uint16_t len)
+{
+  return 0;
+}
+/*---------------------------------------------------------------------------*/
+const struct tunnel_driver tunnel_null_driver = {
+  init,
+  output
+};
