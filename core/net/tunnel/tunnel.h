@@ -35,7 +35,7 @@
 #include "net/ip/uip.h"
 
 void tunnel_init(void);
-int tunnel_6to4(const uint8_t *ipv6packet, const uint16_t ipv6len,
+int tunnel_encap(const uint8_t *ipv6packet, const uint16_t ipv6len,
               uint8_t *resultpacket);
 int tunnel_4to6(const uint8_t *ipv4packet, const uint16_t ipv4len,
               uint8_t *resultpacket);

@@ -69,7 +69,7 @@
 #include <string.h> /* for memcpy() */
 #include <stdio.h> /* for printf() */
 
-#define DEBUG 0
+#define DEBUG 1
 
 #if DEBUG
 #undef PRINTF
@@ -359,7 +359,7 @@ ipv6_transport_checksum(const uint8_t *packet, uint16_t len, uint8_t proto)
 }
 /*---------------------------------------------------------------------------*/
 int
-tunnel_6to4(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
+tunnel_encap(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
 	  uint8_t *resultpacket)
 {
   struct ipv4_hdr *v4hdr;
@@ -368,6 +368,8 @@ tunnel_6to4(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
   struct tcp_hdr *tcphdr;
   struct icmpv4_hdr *icmpv4hdr;
   struct icmpv6_hdr *icmpv6hdr;
+  struct uint8_t *encapip6;
+  struct uint8_t *encapport;
   uint16_t ipv6len, ipv4len;
   struct tunnel_addrmap_entry *m;
 
@@ -383,10 +385,16 @@ tunnel_6to4(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
 
   /* We copy the data from the IPv6 packet into the IPv4 packet. We do
      not modify the data in any way. */
+  //original packet ipv6 address 16 bytes
+  //original packet port address 2 bytes
+  PRINTF("tunnel_6to4: packet received\n");
+
   memcpy(&resultpacket[IPV4_HDRLEN],
 	 &ipv6packet[IPV6_HDRLEN],
 	 ipv6len - IPV6_HDRLEN);
 
+  //encapip6 = ( uint8_t *)&resultpacket[IPV4_HDRLEN];
+  //encapport = (struct uint8_t *)&resultpacket[IPV4_HDRLEN+16];
   udphdr = (struct udp_hdr *)&resultpacket[IPV4_HDRLEN];
   tcphdr = (struct tcp_hdr *)&resultpacket[IPV4_HDRLEN];
   icmpv4hdr = (struct icmpv4_hdr *)&resultpacket[IPV4_HDRLEN];
@@ -483,6 +491,7 @@ tunnel_6to4(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
      transported into to the IPv4 network. */
   v4hdr->ttl = v6hdr->hoplim;
 
+
   /* We next convert the destination address. We make this conversion
      with the tunnel_addr_6to4() function. If the conversion
      fails, tunnel_addr_6to4() returns 0. If so, we also return 0 to
@@ -519,100 +528,10 @@ tunnel_6to4(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
      of the packet.
   */
 
-  /* We check to see if we already have an existing IP address mapping
-     for this connection. If not, we create a new one. */
-  if((v4hdr->proto == IP_PROTO_UDP || v4hdr->proto == IP_PROTO_TCP)) {
-
-    if(tunnel_special_ports_outgoing_is_special(uip_ntohs(udphdr->srcport))) {
-      uint16_t newport;
-      if(tunnel_special_ports_translate_outgoing(uip_ntohs(udphdr->srcport),
-					       &v6hdr->srcipaddr,
-					       &newport)) {
-	udphdr->srcport = uip_htons(newport);
-      }
-    } else if(uip_ntohs(udphdr->srcport) >= EPHEMERAL_PORTRANGE) {
-      m = tunnel_addrmap_lookup(&v6hdr->srcipaddr,
-                              uip_ntohs(udphdr->srcport),
-			      &v4hdr->destipaddr,
-			      uip_ntohs(udphdr->destport),
-			      v4hdr->proto);
-      if(m == NULL) {
-	PRINTF("Lookup failed\n");
-	m = tunnel_addrmap_create(&v6hdr->srcipaddr,
-				uip_ntohs(udphdr->srcport),
-				&v4hdr->destipaddr,
-				uip_ntohs(udphdr->destport),
-				v4hdr->proto);
-	if(m == NULL) {
-	  PRINTF("Could not create new map\n");
-	  return 0;
-	} else {
-	  PRINTF("Could create new local port %d\n", m->mapped_port);
-	}
-      } else {
-	PRINTF("Lookup: found local port %d (%d)\n", m->mapped_port,
-	       uip_htons(m->mapped_port));
-      }
-
-      /* Update the lifetime of the address mapping. We need to be
-         frugal with address mapping table entries, so we assign
-         different lifetimes depending on the type of packet we see.
-
-         For TCP connections, we don't want to have a lot of failed
-         connection attmpts lingering around, so we assign mappings
-         with TCP SYN segments a short lifetime. If we see a RST
-         segment, this indicates that the connection might be dead,
-         and we'll assign a shorter lifetime.
-
-         For UDP packets and for non-SYN/non-RST segments, we assign
-         the default lifetime. */
-      if(v4hdr->proto == IP_PROTO_TCP) {
-        if((tcphdr->flags & TCP_SYN)) {
-          tunnel_addrmap_set_lifetime(m, SYN_LIFETIME);
-        } else if((tcphdr->flags & TCP_RST)) {
-          tunnel_addrmap_set_lifetime(m, RST_LIFETIME);
-        } else {
-          tunnel_addrmap_set_lifetime(m, DEFAULT_LIFETIME);
-        }
-
-        /* Also check if we see a FIN segment. If so, we'll mark the
-           address mapping as being candidate for recycling. Same for
-           RST segments. */
-        if((tcphdr->flags & TCP_FIN) ||
-           (tcphdr->flags & TCP_RST)) {
-          tunnel_addrmap_set_recycleble(m);
-        }
-      } else {
-        tunnel_addrmap_set_lifetime(m, DEFAULT_LIFETIME);
-
-        /* Treat UDP packets from the IPv6 network to a multicast
-           address on the IPv4 network differently: since there is
-           no way for packets from the IPv4 network to go back to
-           the IPv6 network on these mappings, we'll mark them as
-           recyclable. */
-        if(v4hdr->destipaddr.u8[0] == 224) {
-          tunnel_addrmap_set_recycleble(m);
-        }
-
-        /* Treat DNS requests differently: since the are one-shot, we
-           mark them as recyclable. */
-        if(udphdr->destport == UIP_HTONS(DNS_PORT)) {
-          tunnel_addrmap_set_recycleble(m);
-        }
-      }
-
-      /* Set the source port of the packet to be the mapped port
-         number. */
-      udphdr->srcport = uip_htons(m->mapped_port);
-    }
-  }
-
   /* The IPv4 header is now complete, so we can compute the IPv4
      header checksum. */
   v4hdr->ipchksum = 0;
   v4hdr->ipchksum = ~(ipv4_checksum(v4hdr));
-
-
 
   /* The checksum is in different places in the different protocol
      headers, so we need to be sure that we update the correct
@@ -641,6 +560,67 @@ tunnel_6to4(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
     PRINTF("tunnel_6to4: transport protocol %d not implemented\n", v4hdr->proto);
     return 0;
   }
+
+  //TUNNEL_TEST START
+  if((uip_ntohs(udphdr->srcport) >= EPHEMERAL_PORTRANGE))
+  {
+	  uip_ip6addr_t dest_addr;
+	  uip_ip6addr_t src_addr;
+	  uint16_t dest_port;
+	  uint16_t src_port;
+	  uint16_t udplen;
+
+	  //set IEP ipv4 address
+	  tunnel_addr_set_dest(&v4hdr->destipaddr);
+
+	  //store original source and destination address & port of the packet
+	  dest_addr = v6hdr->destipaddr;
+	  dest_port = udphdr->destport;
+	  src_addr = v6hdr->srcipaddr;
+	  src_port = udphdr->srcport;
+
+	  //set ipv4 tunnel packet udp packet source & dest port
+	  udphdr->srcport = uip_htons(8000);
+	  udphdr->destport = uip_htons(9000);
+
+	  //source ipv6 address (16 byte) + port number (2 bytes)
+	  //dest ipv6 address (16 byte) + port number (2 bytes)
+	  //total size = 36 bytes
+	  ipv4len += 36;
+	  v4hdr->len[0] = ipv4len >> 8;
+	  v4hdr->len[1] = ipv4len & 0xff;
+	  udplen = uip_ntohs(udphdr->udplen);
+	  udplen += 36;
+	  udphdr->udplen = uip_htons(udplen);
+
+	  uint8_t packet_header = IPV4_HDRLEN + 8;
+
+	  PRINTF("tunnel_6to4: before memmove %d\n", packet_header);
+	  memmove(&resultpacket[packet_header+36],
+	  	 &resultpacket[packet_header],
+	  	 ipv6len - IPV6_HDRLEN);
+	  PRINTF("tunnel_6to4: after memmove %d\n", packet_header);
+	  memcpy(&resultpacket[packet_header],
+			  &src_addr,
+			  sizeof(src_addr));
+	  PRINTF("tunnel_6to4: after dest_addr copy %d\n", packet_header);
+	  memcpy(resultpacket[packet_header+16],
+			  &src_port,
+			  sizeof(src_port));
+	  memcpy(&resultpacket[packet_header+18],
+			  &dest_addr,
+			  sizeof(dest_addr));
+	  PRINTF("tunnel_6to4: after dest_addr copy %d\n", packet_header);
+	  memcpy(resultpacket[packet_header+34],
+			  &dest_port,
+			  sizeof(dest_port));
+	  PRINTF("tunnel_6to4: after port copy %d\n", packet_header);
+  }
+  else
+	  PRINTF("packet in EPHEMERAL_PORTRANGE srcport: %d\n", uip_ntohs(udphdr->srcport));
+
+
+  //TUNNEL_TEST END
 
   /* Finally, we return the length of the resulting IPv4 packet. */
   PRINTF("tunnel_6to4: ipv4len %d\n", ipv4len);

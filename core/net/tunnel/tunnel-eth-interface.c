@@ -96,7 +96,7 @@ output(void)
   PRINTF("\n");
 
   printf("<--------------\n");
-  len = tunnel_6to4(&uip_buf[UIP_LLH_LEN], uip_len,
+  len = tunnel_encap(&uip_buf[UIP_LLH_LEN], uip_len,
 		  &tunnel_packet_buffer[sizeof(struct tunnel_eth_hdr)]);
 
   printf("tunnel-interface: output len %d\n", len);
