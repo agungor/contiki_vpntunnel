@@ -528,39 +528,6 @@ tunnel_encap(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
      of the packet.
   */
 
-  /* The IPv4 header is now complete, so we can compute the IPv4
-     header checksum. */
-  v4hdr->ipchksum = 0;
-  v4hdr->ipchksum = ~(ipv4_checksum(v4hdr));
-
-  /* The checksum is in different places in the different protocol
-     headers, so we need to be sure that we update the correct
-     field. */
-  switch(v4hdr->proto) {
-  case IP_PROTO_TCP:
-    tcphdr->tcpchksum = 0;
-    tcphdr->tcpchksum = ~(ipv4_transport_checksum(resultpacket, ipv4len,
-						  IP_PROTO_TCP));
-    break;
-  case IP_PROTO_UDP:
-    udphdr->udpchksum = 0;
-    udphdr->udpchksum = ~(ipv4_transport_checksum(resultpacket, ipv4len,
-						  IP_PROTO_UDP));
-    if(udphdr->udpchksum == 0) {
-      udphdr->udpchksum = 0xffff;
-    }
-    break;
-  case IP_PROTO_ICMPV4:
-    icmpv4hdr->icmpchksum = 0;
-    icmpv4hdr->icmpchksum = ~(ipv4_transport_checksum(resultpacket, ipv4len,
-						      IP_PROTO_ICMPV4));
-    break;
-
-  default:
-    PRINTF("tunnel_6to4: transport protocol %d not implemented\n", v4hdr->proto);
-    return 0;
-  }
-
   //TUNNEL_TEST START
   if((uip_ntohs(udphdr->srcport) >= EPHEMERAL_PORTRANGE))
   {
@@ -620,6 +587,38 @@ tunnel_encap(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
 	  PRINTF("packet in EPHEMERAL_PORTRANGE srcport: %d\n", uip_ntohs(udphdr->srcport));
 
 
+  /* The IPv4 header is now complete, so we can compute the IPv4
+       header checksum. */
+    v4hdr->ipchksum = 0;
+    v4hdr->ipchksum = ~(ipv4_checksum(v4hdr));
+
+    /* The checksum is in different places in the different protocol
+       headers, so we need to be sure that we update the correct
+       field. */
+    switch(v4hdr->proto) {
+    case IP_PROTO_TCP:
+      tcphdr->tcpchksum = 0;
+      tcphdr->tcpchksum = ~(ipv4_transport_checksum(resultpacket, ipv4len,
+  						  IP_PROTO_TCP));
+      break;
+    case IP_PROTO_UDP:
+      udphdr->udpchksum = 0;
+      udphdr->udpchksum = ~(ipv4_transport_checksum(resultpacket, ipv4len,
+  						  IP_PROTO_UDP));
+      if(udphdr->udpchksum == 0) {
+        udphdr->udpchksum = 0xffff;
+      }
+      break;
+    case IP_PROTO_ICMPV4:
+      icmpv4hdr->icmpchksum = 0;
+      icmpv4hdr->icmpchksum = ~(ipv4_transport_checksum(resultpacket, ipv4len,
+  						      IP_PROTO_ICMPV4));
+      break;
+
+    default:
+      PRINTF("tunnel_6to4: transport protocol %d not implemented\n", v4hdr->proto);
+      return 0;
+    }
   //TUNNEL_TEST END
 
   /* Finally, we return the length of the resulting IPv4 packet. */
