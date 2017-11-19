@@ -60,7 +60,7 @@ tunnel_eth_interface_input(uint8_t *packet, uint16_t len)
   } else if(ethhdr->type == UIP_HTONS(TUNNEL_ETH_TYPE_IP) &&
 	    len > sizeof(struct tunnel_eth_hdr)) {
     printf("-------------->\n");
-    uip_len = tunnel_4to6(&packet[sizeof(struct tunnel_eth_hdr)],
+    uip_len = tunnel_decap(&packet[sizeof(struct tunnel_eth_hdr)],
 			len - sizeof(struct tunnel_eth_hdr),
 			&uip_buf[UIP_LLH_LEN]);
     if(uip_len > 0) {
