@@ -131,7 +131,7 @@ output(void)
   if(uip_ipaddr_cmp(&last_sender, &UIP_IP_BUF->srcipaddr)) {
     PRINTF("tunnel-interface: output, not sending bounced message\n");
   } else {
-    len = tunnel_6to4(&uip_buf[UIP_LLH_LEN], uip_len,
+    len = tunnel_encap(&uip_buf[UIP_LLH_LEN], uip_len,
 		    tunnel_packet_buffer);
     PRINTF("tunnel-interface: output len %d\n", len);
     if(len > 0) {
