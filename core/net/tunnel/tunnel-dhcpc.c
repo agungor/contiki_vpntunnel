@@ -36,16 +36,16 @@
 
 #include "contiki.h"
 #include "contiki-net.h"
-#include "ip64-dhcpc.h"
+#include "tunnel-dhcpc.h"
 
-#include "ip64-addr.h"
+#include "tunnel-addr.h"
 
 #define STATE_INITIAL         0
 #define STATE_SENDING         1
 #define STATE_OFFER_RECEIVED  2
 #define STATE_CONFIG_RECEIVED 3
 
-static struct ip64_dhcpc_state s;
+static struct tunnel_dhcpc_state s;
 
 struct dhcp_msg {
   uint8_t op, htype, hlen, hops;
@@ -75,8 +75,8 @@ struct dhcp_msg {
 #define DHCP_HLEN_ETHERNET  6
 #define DHCP_MSG_LEN      236
 
-#define IP64_DHCPC_SERVER_PORT  67
-#define IP64_DHCPC_CLIENT_PORT  68
+#define TUNNEL_DHCPC_SERVER_PORT  67
+#define TUNNEL_DHCPC_CLIENT_PORT  68
 
 #define DHCPDISCOVER  1
 #define DHCPOFFER     2
@@ -342,7 +342,7 @@ PT_THREAD(handle_dhcp(process_event_t ev, void *data))
 	 uip_ntohs(s.lease_time[0])*65536ul + uip_ntohs(s.lease_time[1]));
 #endif
 
-  ip64_dhcpc_configured(&s);
+  tunnel_dhcpc_configured(&s);
   
 #define MAX_TICKS (~((clock_time_t)0) / 2)
 #define MAX_TICKS32 (~((uint32_t)0))
@@ -393,17 +393,17 @@ PT_THREAD(handle_dhcp(process_event_t ev, void *data))
   /* rebinding: */
 
   /* lease_expired: */
-  ip64_dhcpc_unconfigured(&s);
+  tunnel_dhcpc_unconfigured(&s);
   goto init;
 
   PT_END(&s.pt);
 }
 /*---------------------------------------------------------------------------*/
 void
-ip64_dhcpc_init(const void *mac_addr, int mac_len)
+tunnel_dhcpc_init(const void *mac_addr, int mac_len)
 {
   /* Although this is DHCPv4, we explicitly bind the socket to an IPv6
-     address so that it can operate over the ip64 bridge. */
+     address so that it can operate over the tunnel bridge. */
   uip_ip6addr_t v6addr;
   uip_ip4addr_t v4addr;
   struct uip_udp_conn *conn2;
@@ -413,20 +413,20 @@ ip64_dhcpc_init(const void *mac_addr, int mac_len)
 
   s.state = STATE_INITIAL;
   uip_ipaddr(&v4addr, 255,255,255,255); 
-  ip64_addr_4to6(&v4addr, &v6addr);
-  s.conn = udp_new(&v6addr, UIP_HTONS(IP64_DHCPC_SERVER_PORT), NULL);
-  conn2 = udp_new(NULL, UIP_HTONS(IP64_DHCPC_SERVER_PORT), NULL);
+  tunnel_addr_4to6(&v4addr, &v6addr);
+  s.conn = udp_new(&v6addr, UIP_HTONS(TUNNEL_DHCPC_SERVER_PORT), NULL);
+  conn2 = udp_new(NULL, UIP_HTONS(TUNNEL_DHCPC_SERVER_PORT), NULL);
   if(s.conn != NULL) {
-    udp_bind(s.conn, UIP_HTONS(IP64_DHCPC_CLIENT_PORT));
+    udp_bind(s.conn, UIP_HTONS(TUNNEL_DHCPC_CLIENT_PORT));
   }
   if(conn2 != NULL) {
-    udp_bind(conn2, UIP_HTONS(IP64_DHCPC_CLIENT_PORT));
+    udp_bind(conn2, UIP_HTONS(TUNNEL_DHCPC_CLIENT_PORT));
   }
   PT_INIT(&s.pt);
 }
 /*---------------------------------------------------------------------------*/
 void
-ip64_dhcpc_appcall(process_event_t ev, void *data)
+tunnel_dhcpc_appcall(process_event_t ev, void *data)
 {
   if(ev == tcpip_event || ev == PROCESS_EVENT_TIMER) {
     handle_dhcp(ev, data);
@@ -434,7 +434,7 @@ ip64_dhcpc_appcall(process_event_t ev, void *data)
 }
 /*---------------------------------------------------------------------------*/
 void
-ip64_dhcpc_request(void)
+tunnel_dhcpc_request(void)
 {
   uip_ipaddr_t ipaddr;
   

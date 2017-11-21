@@ -29,51 +29,79 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#include "tunnel-eth-interface.h"
-
 #include "net/ip/uip.h"
 #include "net/ipv6/uip-ds6.h"
 #include "dev/slip.h"
 
 #include "tunnel.h"
-#include "tunnel-arp.h"
+
 #include <string.h>
+#include <stdio.h>
 
 #define UIP_IP_BUF        ((struct uip_ip_hdr *)&uip_buf[UIP_LLH_LEN])
 
 #define DEBUG DEBUG_NONE
 #include "net/ip/uip-debug.h"
-#define printf(...)
+
+static uip_ipaddr_t last_sender;
+
 /*---------------------------------------------------------------------------*/
 void
-tunnel_eth_interface_input(uint8_t *packet, uint16_t len)
+tunnel_slip_interface_input(uint8_t *packet, uint16_t len)
 {
-  struct tunnel_eth_hdr *ethhdr;
-  ethhdr = (struct tunnel_eth_hdr *)packet;
-
-  if(ethhdr->type == UIP_HTONS(IP64_ETH_TYPE_ARP)) {
-    len = tunnel_arp_arp_input(packet, len);
-
-    if(len > 0) {
-      IP64_ETH_DRIVER.output(packet, len);
-    }
-  } else if(ethhdr->type == UIP_HTONS(IP64_ETH_TYPE_IP) &&
-	    len > sizeof(struct tunnel_eth_hdr)) {
-    printf("-------------->\n");
-    uip_len = tunnel_4to6(&packet[sizeof(struct tunnel_eth_hdr)],
-			len - sizeof(struct tunnel_eth_hdr),
-			&uip_buf[UIP_LLH_LEN]);
-    if(uip_len > 0) {
-      printf("tunnel_interface_process: converted %d bytes\n", uip_len);
-
-      printf("tunnel-interface: input source ");
-      PRINT6ADDR(&UIP_IP_BUF->srcipaddr);
-      PRINTF(" destination ");
-      PRINT6ADDR(&UIP_IP_BUF->destipaddr);
+  /* Dummy definition: this function is not actually called, but must
+     be here to conform to the ip65-interface.h structure. */
+}
+/*---------------------------------------------------------------------------*/
+static void
+input_callback(void)
+{
+  /*PRINTF("SIN: %u\n", uip_len);*/
+  if(uip_buf[0] == '!') {
+    PRINTF("Got configuration message of type %c\n", uip_buf[1]);
+    uip_clear_buf();
+#if 0
+    if(uip_buf[1] == 'P') {
+      uip_ipaddr_t prefix;
+      /* Here we set a prefix !!! */
+      memset(&prefix, 0, 16);
+      memcpy(&prefix, &uip_buf[2], 8);
+      PRINTF("Setting prefix ");
+      PRINT6ADDR(&prefix);
       PRINTF("\n");
-
-      tcpip_input();
-      printf("Done\n");
+      set_prefix_64(&prefix);
+    }
+#endif
+  } else if(uip_buf[0] == '?') {
+    PRINTF("Got request message of type %c\n", uip_buf[1]);
+    if(uip_buf[1] == 'M') {
+      const char *hexchar = "0123456789abcdef";
+      int j;
+      /* this is just a test so far... just to see if it works */
+      uip_buf[0] = '!';
+      for(j = 0; j < 8; j++) {
+        uip_buf[2 + j * 2] = hexchar[uip_lladdr.addr[j] >> 4];
+        uip_buf[3 + j * 2] = hexchar[uip_lladdr.addr[j] & 15];
+      }
+      uip_len = 18;
+      slip_send();
+      
+    }
+    uip_clear_buf();
+  } else {
+    
+    /* Save the last sender received over SLIP to avoid bouncing the
+       packet back if no route is found */
+    uip_ipaddr_copy(&last_sender, &UIP_IP_BUF->srcipaddr);
+    
+    uint16_t len = tunnel_4to6(&uip_buf[UIP_LLH_LEN], uip_len, 
+			     tunnel_packet_buffer);
+    if(len > 0) {
+      memcpy(&uip_buf[UIP_LLH_LEN], tunnel_packet_buffer, len);
+      uip_len = len;
+      /*      PRINTF("send len %d\n", len); */
+    } else {
+      uip_clear_buf();
     }
   }
 }
@@ -81,47 +109,45 @@ tunnel_eth_interface_input(uint8_t *packet, uint16_t len)
 static void
 init(void)
 {
-  printf("tunnel-eth-interface: init\n");
+  PRINTF("tunnel-slip-interface: init\n");
+  //  slip_arch_init(BAUD2UBR(115200));
+  process_start(&slip_process, NULL);
+  slip_set_input_callback(input_callback);
 }
 /*---------------------------------------------------------------------------*/
 static int
 output(void)
 {
-  int len, ret;
+  int len;
 
-  printf("tunnel-interface: output source ");
+  PRINTF("tunnel-slip-interface: output source ");
+
+  /*
   PRINT6ADDR(&UIP_IP_BUF->srcipaddr);
   PRINTF(" destination ");
   PRINT6ADDR(&UIP_IP_BUF->destipaddr);
   PRINTF("\n");
-
-  printf("<--------------\n");
-  len = tunnel_6to4(&uip_buf[UIP_LLH_LEN], uip_len,
-		  &tunnel_packet_buffer[sizeof(struct tunnel_eth_hdr)]);
-
-  printf("tunnel-interface: output len %d\n", len);
-  if(len > 0) {
-    if(tunnel_arp_check_cache(&tunnel_packet_buffer[sizeof(struct tunnel_eth_hdr)])) {
-      printf("Create header\n");
-      ret = tunnel_arp_create_ethhdr(tunnel_packet_buffer,
-				   &tunnel_packet_buffer[sizeof(struct tunnel_eth_hdr)]);
-      if(ret > 0) {
-	len += ret;
-	IP64_ETH_DRIVER.output(tunnel_packet_buffer, len);
-      }
-    } else {
-      printf("Create request\n");
-      len = tunnel_arp_create_arp_request(tunnel_packet_buffer,
-					&tunnel_packet_buffer[sizeof(struct tunnel_eth_hdr)]);
-      return IP64_ETH_DRIVER.output(tunnel_packet_buffer, len);
+  */
+  if(uip_ipaddr_cmp(&last_sender, &UIP_IP_BUF->srcipaddr)) {
+    PRINTF("tunnel-interface: output, not sending bounced message\n");
+  } else {
+    len = tunnel_encap(&uip_buf[UIP_LLH_LEN], uip_len,
+		    tunnel_packet_buffer);
+    PRINTF("tunnel-interface: output len %d\n", len);
+    if(len > 0) {
+      memcpy(&uip_buf[UIP_LLH_LEN], tunnel_packet_buffer, len);
+      uip_len = len;
+      slip_send();
+      return len;
     }
   }
-
   return 0;
 }
 /*---------------------------------------------------------------------------*/
-const struct uip_fallback_interface tunnel_eth_interface = {
-  init,
-  output
+const struct uip_fallback_interface tunnel_slip_interface = {
+  init, output
 };
 /*---------------------------------------------------------------------------*/
+
+
+

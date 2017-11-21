@@ -29,9 +29,16 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#ifndef IP64_IPV4_DHCP_H
-#define IP64_IPV4_DHCP_H
+#include "tunnel-eth.h"
 
-void ip64_ipv4_dhcp_init(void);
+#include <string.h>
 
-#endif /* IP64_IPV4_DHCP_H */
+struct tunnel_eth_addr tunnel_eth_addr;
+
+/*---------------------------------------------------------------------------*/
+void
+tunnel_eth_addr_set(struct tunnel_eth_addr *addr)
+{
+  memcpy(&tunnel_eth_addr, addr, sizeof(struct tunnel_eth_addr));
+}
+/*---------------------------------------------------------------------------*/

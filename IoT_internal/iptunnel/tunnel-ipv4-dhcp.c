@@ -31,46 +31,45 @@
  */
 #include "contiki.h"
 #include "contiki-net.h"
-#include "ip64-dhcpc.h"
-
-#include "ip64.h"
-#include "ip64-eth.h"
-#include "ip64-addr.h"
+#include "tunnel.h"
 
 #include <stdio.h>
 
-#define DEBUG 1
+#include "tunnel-dhcpc.h"
+#include "tunnel-eth.h"
+
+#define DEBUG DEBUG_NONE
 #include "net/ip/uip-debug.h"
 
-PROCESS(ip64_ipv4_dhcp_process, "IPv4 DHCP");
+PROCESS(tunnel_ipv4_dhcp_process, "IPv4 DHCP");
 
 uip_ipaddr_t uip_hostaddr; /* Needed because it is referenced by dhcpc.c */
 
 
 /*---------------------------------------------------------------------------*/
 void
-ip64_ipv4_dhcp_init(void)
+tunnel_ipv4_dhcp_init(void)
 {
   printf("IP64: Starting DHCPv4\n");
-  process_start(&ip64_ipv4_dhcp_process, NULL);
+  process_start(&tunnel_ipv4_dhcp_process, NULL);
 }
 /*---------------------------------------------------------------------------*/
-PROCESS_THREAD(ip64_ipv4_dhcp_process, ev, data)
+PROCESS_THREAD(tunnel_ipv4_dhcp_process, ev, data)
 {
   PROCESS_BEGIN();
 
-  ip64_dhcpc_init(&ip64_eth_addr, sizeof(ip64_eth_addr));
+  tunnel_dhcpc_init(&tunnel_eth_addr, sizeof(tunnel_eth_addr));
 
   PRINTF("IP64: Inited\n");
 
-  ip64_dhcpc_request();
+  tunnel_dhcpc_request();
   PRINTF("IP64: Requested\n");
   while(1) {
     PROCESS_WAIT_EVENT();
 
     if(ev == tcpip_event ||
        ev == PROCESS_EVENT_TIMER) {
-      ip64_dhcpc_appcall(ev, data);
+      tunnel_dhcpc_appcall(ev, data);
     }
   }
 
@@ -78,29 +77,20 @@ PROCESS_THREAD(ip64_ipv4_dhcp_process, ev, data)
 }
 /*---------------------------------------------------------------------------*/
 void
-ip64_dhcpc_configured(const struct ip64_dhcpc_state *s)
+tunnel_dhcpc_configured(const struct tunnel_dhcpc_state *s)
 {
   uip_ip6addr_t ip6dnsaddr;
   PRINTF("IP64: DHCP Configured with %d.%d.%d.%d\n",
 	 s->ipaddr.u8[0], s->ipaddr.u8[1],
 	 s->ipaddr.u8[2], s->ipaddr.u8[3]);
 
-  ip64_set_hostaddr((uip_ip4addr_t *)&s->ipaddr);
-  ip64_set_netmask((uip_ip4addr_t *)&s->netmask);
-  ip64_set_draddr((uip_ip4addr_t *)&s->default_router);
-  if(!uip_ip4addr_cmp((uip_ip4addr_t *)&s->dnsaddr, &uip_all_zeroes_addr)) {
-    /* Note: Currently we assume only one DNS server */
-    uip_ipaddr_t * dns = uip_nameserver_get(0);
-    /* Only update DNS entry if it is empty or already IPv4 */
-    if(uip_is_addr_unspecified(dns) || ip64_addr_is_ip64(dns)) {
-      ip64_addr_4to6((uip_ip4addr_t *)&s->dnsaddr, &ip6dnsaddr);
-      uip_nameserver_update(&ip6dnsaddr, uip_ntohs(s->lease_time[0])*65536ul + uip_ntohs(s->lease_time[1]));
-    }
-  }
+  tunnel_set_hostaddr((uip_ip4addr_t *)&s->ipaddr);
+  tunnel_set_netmask((uip_ip4addr_t *)&s->netmask);
+  tunnel_set_draddr((uip_ip4addr_t *)&s->default_router);
 }
 /*---------------------------------------------------------------------------*/
 void
-ip64_dhcpc_unconfigured(const struct ip64_dhcpc_state *s)
+tunnel_dhcpc_unconfigured(const struct tunnel_dhcpc_state *s)
 {
 }
 /*---------------------------------------------------------------------------*/

@@ -10,7 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- *
  * 3. Neither the name of the copyright holder nor the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
@@ -29,14 +28,49 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#ifndef TUNNEL_CONF_H
-#define TUNNEL_CONF_H
+#include "tunnel.h"
+#include "tunnel-special-ports.h"
 
-#include "net/tunnel/tunnel-eth-interface.h"
-#include "dev/enc28j60_tunnel/enc28j60-tunnel-driver.h"
-#define TUNNEL_CONF_UIP_FALLBACK_INTERFACE tunnel_eth_interface
-#define TUNNEL_CONF_INPUT                  tunnel_eth_interface_input
-#define TUNNEL_CONF_DHCP                   1
-#define TUNNEL_CONF_ETH_DRIVER             enc28j60_tunnel_driver
+#ifndef TUNNEL_SPECIAL_PORTS_CONF_ENABLE
+#define EMPTY_DEFINITIONS 1
+#else
+#if TUNNEL_SPECIAL_PORTS_CONF_ENABLE == 0
+#define EMPTY_DEFINITIONS 1
+#endif /* TUNNEL_SPECIAL_PORTS_CONF_ENABLE */
+#endif /* TUNNEL_SPECIAL_PORTS_CONF_ENABLE */
 
-#endif /* TUNNEL_CONF_H */
+
+
+#if EMPTY_DEFINITIONS
+/*---------------------------------------------------------------------------*/
+int
+tunnel_special_ports_translate_incoming(uint16_t incoming_port,
+				      uip_ip6addr_t *newaddr,
+				      uint16_t *newport)
+{
+  return 0;
+}
+/*---------------------------------------------------------------------------*/
+int
+tunnel_special_ports_translate_outgoing(uint16_t incoming_port,
+				      const uip_ip6addr_t *ip6addr,
+				      uint16_t *newport)
+{
+  return 0;
+}
+/*---------------------------------------------------------------------------*/
+int
+tunnel_special_ports_incoming_is_special(uint16_t port)
+{
+  /* Default is to have no special ports. */
+  return 0;
+}
+/*---------------------------------------------------------------------------*/
+int
+tunnel_special_ports_outgoing_is_special(uint16_t port)
+{
+  /* Default is to have no special ports. */
+  return 0;
+}
+/*---------------------------------------------------------------------------*/
+#endif /* EMPTY_DEFINITIONS */

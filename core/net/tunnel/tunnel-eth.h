@@ -29,14 +29,34 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#ifndef TUNNEL_CONF_H
-#define TUNNEL_CONF_H
+#ifndef TUNNEL_ETH_H
+#define TUNNEL_ETH_H
 
-#include "net/tunnel/tunnel-eth-interface.h"
-#include "dev/enc28j60_tunnel/enc28j60-tunnel-driver.h"
-#define TUNNEL_CONF_UIP_FALLBACK_INTERFACE tunnel_eth_interface
-#define TUNNEL_CONF_INPUT                  tunnel_eth_interface_input
-#define TUNNEL_CONF_DHCP                   1
-#define TUNNEL_CONF_ETH_DRIVER             enc28j60_tunnel_driver
+#include "contiki-conf.h"
 
-#endif /* TUNNEL_CONF_H */
+/**
+ * The Ethernet address.
+ */
+struct tunnel_eth_addr {
+  uint8_t addr[6];
+};
+
+extern struct tunnel_eth_addr tunnel_eth_addr;
+
+void tunnel_eth_addr_set(struct tunnel_eth_addr *addr);
+
+/**
+ * The Ethernet header.
+ */
+struct tunnel_eth_hdr {
+  struct tunnel_eth_addr dest;
+  struct tunnel_eth_addr src;
+  uint16_t type;
+};
+
+#define TUNNEL_ETH_TYPE_ARP  0x0806
+#define TUNNEL_ETH_TYPE_IP   0x0800
+#define TUNNEL_ETH_TYPE_IPV6 0x86dd
+
+
+#endif /* TUNNEL_ETH_H */

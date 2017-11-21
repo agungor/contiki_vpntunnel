@@ -10,7 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- *
  * 3. Neither the name of the copyright holder nor the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
@@ -29,15 +28,37 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#include <string.h>
-#include "tunnel-eth.h"
+#ifndef TUNNEL_SPECIAL_PORTS_H
+#define TUNNEL_SPECIAL_PORTS_H
 
-struct tunnel_eth_addr tunnel_eth_addr;
+/* The TUNNEL special ports module allows specific ports on the TUNNEL
+   translator to be mapped to specific address in the IPv6
+   network. The module provides three function prototypes that must be
+   implemented by the user.
 
-/*---------------------------------------------------------------------------*/
-void
-ip64_eth_addr_set(struct tunnel_eth_addr *addr)
-{
-  memcpy(&tunnel_eth_addr, addr, sizeof(struct tunnel_eth_addr));
-}
-/*---------------------------------------------------------------------------*/
+   The TUNNEL special ports module must be enabled by
+
+#define TUNNEL_SPECIAL_PORTS_CONF_ENABLE 1
+
+   Otherwise, the functions are replaced by empty default definitions
+   in the tunnel-special-ports.c module.
+
+   Port numbers are always in network byte order. */
+
+
+/* Translate the special port to an IPv6 address for inbound
+   packets. */
+int tunnel_special_ports_translate_incoming(uint16_t incoming_port,
+					  uip_ip6addr_t *newaddr,
+					  uint16_t *newport);
+int tunnel_special_ports_translate_outgoing(uint16_t incoming_port,
+					  const uip_ip6addr_t *ip6addr,
+					  uint16_t *newport);
+/* Check if an incoming (destination) port is special. */
+int tunnel_special_ports_incoming_is_special(uint16_t port);
+
+/* Check if an outgoing (source) port is special. */
+int tunnel_special_ports_outgoing_is_special(uint16_t port);
+
+
+#endif /* TUNNEL_SPECIAL_PORTS_H */
