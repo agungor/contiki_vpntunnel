@@ -17,7 +17,6 @@ seq = 0
 while True:
     data,addr = UDPSock.recvfrom(BUFFER)
     print('Recvd   from:{} data:{}'.format(addr, data[36:].decode('ascii')))
-    src_addr = data[:16]
     src_port = data[16:18]
     dst_port = data[34:36]
     src_addr = ipaddress.ip_address(data[:16])
