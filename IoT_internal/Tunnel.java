@@ -9,8 +9,8 @@ public class Tunnel{
 	private final int PORT=9000;//IEP receives connections on this port
 	private static final int DATA_SIZE=200;
 	byte [] rcvDataBuf=new byte[DATA_SIZE]; //a buffer to put the data from 6EP in.
-	String sicsEPaddr="130.237.20.137";//6EP IP address
-	InetAddress sepAddress;
+	String sicsEPaddrString="130.237.20.137";//6EP IP address
+	InetAddress sixEpAddress;
 	int remotPort;
 
 	public Tunnel(){
@@ -18,12 +18,11 @@ public class Tunnel{
 	}
 	private void start(){
 		try {
-			//DatagramSocket listeningSocket=new DatagramSocket();
 			System.out.println("will listen and accept a new connection");
 			DatagramSocket connectionSocket=new DatagramSocket(PORT);
 			DatagramPacket rcvPkt=new DatagramPacket(this.rcvDataBuf, rcvDataBuf.length);
 			int pktLength=rcvPkt.getLength();
-			this.sepAddress=InetAddress.getByName(this.sicsEPaddr);	
+			this.sixEpAddress=InetAddress.getByName(this.sicsEPaddrString);	
 
 			while (true) {
 				System.out.println("waiting for a packet");
@@ -31,7 +30,12 @@ public class Tunnel{
 				this.remotPort=rcvPkt.getPort();
 				System.out.println("just received a connection from src port: "+ this.remotPort);
 				System.out.println("have just returned from rcv of lengh: "+ pktLength);
-				if(connectionSocket.getInetAddress()==this.sepAddress){
+				
+				/*
+				 * The if-statement below is to be activated when we test on hardware.
+				 * For now we are testing in local machine.
+				 * */
+				if(connectionSocket.getInetAddress()==this.sixEpAddress){
 					//process_packet_from_6ep
 				}
 				else{
@@ -66,12 +70,6 @@ public class Tunnel{
 		
 	}
 	
-	
-	/*private void process_packet_to_6ep(DatagramSocket socket, DatagramPacket packet, int pktLength){
-		System.out.println("processing the connection");
-		SixEpWriter connHan=new SixEpWriter(this, socket, packet, pktLength);
-		new Thread(connHan).start();
-	}*/
     public static void main(String[] args) {
     	Tunnel tun=new Tunnel();
     	
