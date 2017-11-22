@@ -357,7 +357,7 @@ PROCESS_THREAD(border_router_process, ev, data)
 
   SENSORS_ACTIVATE(button_sensor);
   leds_init();
-  ip64_init();
+  tunnel_init();
 
   PRINTF("RPL-Border router started\n");
   PRINTF("RPL_CONF_DEFAULT_INSTANCE: %d\n", RPL_CONF_DEFAULT_INSTANCE);

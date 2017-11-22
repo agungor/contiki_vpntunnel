@@ -29,14 +29,14 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#ifndef TUNNEL_CONF_H
-#define TUNNEL_CONF_H
+#ifndef TUNNEL_INTERFACE_H
+#define TUNNEL_INTERFACE_H
 
-#include "net/tunnel/tunnel-eth-interface.h"
-#include "dev/enc28j60_tunnel/enc28j60-tunnel-driver.h"
-#define TUNNEL_CONF_UIP_FALLBACK_INTERFACE tunnel_eth_interface
-#define TUNNEL_CONF_INPUT                  tunnel_eth_interface_input
-#define TUNNEL_CONF_DHCP                   1
-#define TUNNEL_CONF_ETH_DRIVER             enc28j60_tunnel_driver
+struct tunnel_interface {
+  void (* init)(void);
+  int (* input)(uint8_t *packet, uint16_t packet_len);
+  int (* output)(uint8_t *packet, uint16_t packet_len);
+};
 
-#endif /* TUNNEL_CONF_H */
+
+#endif /* TUNNEL_INTERFACE_H */

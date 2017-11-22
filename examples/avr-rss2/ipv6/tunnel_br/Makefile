@@ -15,7 +15,7 @@ PROJECT_SOURCEFILES += enc28j60-tunnel-driver.c
 APPS += ping6
 APPS += cli
 
-MODULES += dev/enc28j60_tunnel core/net/iptunnel
+MODULES += dev/enc28j60_tunnel core/net/tunnel
 
 #Simple built-in webserver is the default.
 #Override with make WITH_WEBSERVER=0 for no webserver.
