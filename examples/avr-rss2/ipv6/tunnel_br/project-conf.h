@@ -63,6 +63,23 @@
 #define RPL_CONF_DEFAULT_INSTANCE 0x1d
 #define NULLRDC_CONF_802154_AUTOACK_HW	1
 
+
+/*
+ * Tunnel address configuration
+ * \param TUNNEL_DST_ADDR0 The first octet of the IEP IP address.
+ * \param TUNNEL_DST_ADDR1 The second octet of the IEP IP address.
+ * \param TUNNEL_DST_ADDR2 The third octet of the IEP IP address.
+ * \param TUNNEL_DST_ADDR3 The forth octet of the IEP IP address.
+ * \param TUNNEL_SRC_PORT  UDP source port of tunnel
+ * \param TUNNEL_DST_PORT  UDP destination port of tunnel
+*/
+#define TUNNEL_DST_ADDR0 192
+#define TUNNEL_DST_ADDR1 168
+#define TUNNEL_DST_ADDR2 1
+#define TUNNEL_DST_ADDR3 151
+#define TUNNEL_SRC_PORT  8000
+#define TUNNEL_DST_PORT  9000
+
 /* cli config */
 #define CLI_CONF_COMMAND_PROMPT  "KTH-GW> "
 #define CLI_CONF_PROJECT  "GreenIoT V1.0 2017-06-21"

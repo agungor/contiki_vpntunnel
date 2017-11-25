@@ -541,8 +541,8 @@ tunnel_encap(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
 	  src_port = udphdr->srcport;
 
 	  //set ipv4 tunnel packet udp packet source & dest port
-	  udphdr->srcport = uip_htons(8000);
-	  udphdr->destport = uip_htons(9000);
+	  udphdr->srcport = uip_htons(TUNNEL_SRC_PORT);
+	  udphdr->destport = uip_htons(TUNNEL_DST_PORT);
 
 	  //source ipv6 address (16 byte) + port number (2 bytes)
 	  //dest ipv6 address (16 byte) + port number (2 bytes)
