@@ -99,16 +99,16 @@ tunnel_addr_6to4(const uip_ip6addr_t *ipv6addr,
 }
 /*---------------------------------------------------------------------------*/
 int
-tunnel_addr_set_dest(uip_ip4addr_t *ipv4addr)
+tunnel_addr_set_dest(uip_ip4addr_t *ipv4addr, uint8_t addr0, uint8_t addr1, uint8_t addr2, uint8_t addr3)
 {
   /* This function converts IPv6 addresses to IPv4 addresses. It
      returns 0 if it failed to convert the address and non-zero if it
      could successfully convert the address. */
 
-	ipv4addr->u8[0] = TUNNEL_DST_ADDR0;
-	ipv4addr->u8[1] = TUNNEL_DST_ADDR1;
-	ipv4addr->u8[2] = TUNNEL_DST_ADDR2;
-	ipv4addr->u8[3] = TUNNEL_DST_ADDR3;
+	ipv4addr->u8[0] = addr0;
+	ipv4addr->u8[1] = addr1;
+	ipv4addr->u8[2] = addr2;
+	ipv4addr->u8[3] = addr3;
 
     printf("tunnel_addr_set_dest: IPv4 address %d.%d.%d.%d\n",
 	   ipv4addr->u8[0], ipv4addr->u8[1],

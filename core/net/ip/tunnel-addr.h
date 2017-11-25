@@ -62,7 +62,7 @@ int tunnel_addr_is_tunnel(const uip_ip6addr_t *ipv6addr);
 
 void tunnel_addr_set_prefix(const uip_ip6addr_t *prefix, uint8_t prefix_len);
 
-int tunnel_addr_set_dest(uip_ip4addr_t *ipv4addr);
+int tunnel_addr_set_dest(uip_ip4addr_t *ipv4addr, uint8_t addr0, uint8_t addr1, uint8_t addr2, uint8_t addr3);
 
 #endif /* IP64_ADDR_H */
 

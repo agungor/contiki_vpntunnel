@@ -532,7 +532,7 @@ tunnel_encap(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
 	  uint16_t udplen;
 
 	  //set IEP ipv4 address
-	  tunnel_addr_set_dest(&v4hdr->destipaddr);
+	  tunnel_addr_set_dest(&v4hdr->destipaddr, TUNNEL_DST_ADDR0, TUNNEL_DST_ADDR1, TUNNEL_DST_ADDR2, TUNNEL_DST_ADDR3);
 
 	  //store original source and destination address & port of the packet
 	  dest_addr = v6hdr->destipaddr;
