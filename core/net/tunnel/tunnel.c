@@ -39,13 +39,13 @@
  * be decapsulated in this module and forwarded to sensor node addressed
  * in tunnel packet.
 
-   +----------------+								+----------------+
-   |                |								|                |
-   |                | 	       +------+				|                |
-   |  	  6EP       |----------|tunnel|-------------|      IEP       |
-   |                |  	       +------+				|                |
-   |                |		   						|                |
-   +----------------+		   internet				+----------------+
+   +----------------+                                   +----------------+
+   |                |                                   |                |
+   |                | 	           +------+             |                |
+   |  	  6EP       |--------------|tunnel|-------------|      IEP       |
+   |                |  	           +------+		|                |
+   |                |		   			|                |
+   +----------------+		   internet		+----------------+
 
    IPv4 source address of 6EP have been obtained with DHCP from the IPv4
    network, but the exact way this has been obtained is outside the scope
