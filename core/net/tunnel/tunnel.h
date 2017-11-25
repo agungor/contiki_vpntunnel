@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Thingsquare, http://www.thingsquare.com/.
+ * Copyright (c) 2017, Copyright Arman Gungor
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@
 void tunnel_init(void);
 int tunnel_encap(const uint8_t *ipv6packet, const uint16_t ipv6len,
               uint8_t *resultpacket);
-int tunnel_4to6(const uint8_t *ipv4packet, const uint16_t ipv4len,
+int tunnel_decap(const uint8_t *ipv4packet, const uint16_t ipv4len,
               uint8_t *resultpacket);
 
 void tunnel_set_ipv4_address(const uip_ip4addr_t *ipv4addr,

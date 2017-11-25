@@ -94,7 +94,7 @@ input_callback(void)
        packet back if no route is found */
     uip_ipaddr_copy(&last_sender, &UIP_IP_BUF->srcipaddr);
     
-    uint16_t len = tunnel_4to6(&uip_buf[UIP_LLH_LEN], uip_len, 
+    uint16_t len = tunnel_decap(&uip_buf[UIP_LLH_LEN], uip_len,
 			     tunnel_packet_buffer);
     if(len > 0) {
       memcpy(&uip_buf[UIP_LLH_LEN], tunnel_packet_buffer, len);

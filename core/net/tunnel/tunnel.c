@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Thingsquare, http://www.thingsquare.com/.
+ * Copyright (c) 2017, Copyright Arman Gungor
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,26 +30,27 @@
  *
  */
 
-/* The tunnel module is a translator between IPv6 and IPv4 packets. The
-   IPv6 packets come from an IPv6 network and are translated into a
-   single IPv4 host, as shown in the ASCII graphics below.  The IPv6
-   network typically is a low-power RF network and the IPv4 network
-   typically is an Ethernet.
+/* The packets sent to /received from Internet End Point (IEP) will be
+ * handled in this module. A tunnel connection established between 6EP
+ * and IEP via UDP protocol over IPv4. Any packet with a destination
+ * address of outer subnet will be forwarded to IEP via tunnel. Original
+ * source address/port and destination address/port of a packet will be
+ * encapsulated into tunnel packet. Any packet received from IEP will
+ * be decapsulated in this module and forwarded to sensor node addressed
+ * in tunnel packet.
 
-   +----------------+
-   |                |
-   |                |   +------+
-   |  IPv6 network  |---| tunnel |-- IPv4 network
-   |                |   +------+
-   |                |
-   +----------------+
+   +----------------+								+----------------+
+   |                |								|                |
+   |                | 	       +------+				|                |
+   |  	  6EP       |----------|tunnel|-------------|      IEP       |
+   |                |  	       +------+				|                |
+   |                |		   						|                |
+   +----------------+		   internet				+----------------+
 
-   tunnel maps all IPv6 addresses from inside the IPv6 network to its
-   own IPv4 address. This IPv4 address would typically have been
-   obtained with DHCP from the IPv4 network, but the exact way this
-   has been obtained is outside the scope of the tunnel module. The IPv4
-   address is given to the tunnel module through the
-   tunnel_set_ipv4_address() function.
+   IPv4 source address of 6EP have been obtained with DHCP from the IPv4
+   network, but the exact way this has been obtained is outside the scope
+   of the tunnel module. The IPv4 address is given to the tunnel module
+   through the tunnel_set_ipv4_address() function.
 */
 
 #include "tunnel.h"
@@ -369,8 +370,6 @@ tunnel_encap(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
   struct tcp_hdr *tcphdr;
   struct icmpv4_hdr *icmpv4hdr;
   struct icmpv6_hdr *icmpv6hdr;
-  struct uint8_t *encapip6;
-  struct uint8_t *encapport;
   uint16_t ipv6len, ipv4len;
 
   v6hdr = (struct ipv6_hdr *)ipv6packet;
@@ -518,14 +517,10 @@ tunnel_encap(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
 
 
   /* Next we update the transport layer header. This must be updated
-     in two ways: the source port number is changed and the transport
-     layer checksum must be recomputed. The reason why we change the
-     source port number is so that we can remember what IPv6 address
-     this packet came from, in case the packet will result in a reply
-     from the host on the IPv4 network. If a reply would be sent, it
-     would be sent to the port number that we chose, and we will be
-     able to map this back to the IPv6 address of the original sender
-     of the packet.
+     in two ways: the source/dest addr and port number will be changed
+     and the transport layer checksum must be recomputed. Source address/port
+     and destination address/port will be obtained from the decapsulated
+     tunnel data.
   */
 
   if((uip_ntohs(udphdr->srcport) >= EPHEMERAL_PORTRANGE))
@@ -629,7 +624,6 @@ tunnel_decap(const uint8_t *ipv4packet, const uint16_t ipv4packet_len,
   struct icmpv4_hdr *icmpv4hdr;
   struct icmpv6_hdr *icmpv6hdr;
   uint16_t ipv4len, ipv6len, ipv6_packet_len;
-  struct tunnel_addrmap_entry *m;
 
   v6hdr = (struct ipv6_hdr *)resultpacket;
   v4hdr = (struct ipv4_hdr *)ipv4packet;
@@ -683,12 +677,7 @@ tunnel_decap(const uint8_t *ipv4packet, const uint16_t ipv4packet_len,
      source address into an IPv6-encoded IPv4 address. The IPv4
      destination address will be the address with which we have
      previously been configured, through the tunnel_set_ipv4_address()
-     function. We use the mapping table to look up the new IPv6
-     destination address. As we assume that the IPv4 packet is a
-     response to a previously sent IPv6 packet, we should have a
-     mapping between the (protocol, destport, srcport, srcaddress)
-     tuple. If not, we'll return 0 to indicate that we failed to
-     translate the packet. */
+     function. */
   if(tunnel_addr_4to6(&v4hdr->srcipaddr, &v6hdr->srcipaddr) == 0) {
     PRINTF("tunnel_packet_decap: failed to convert source IP address\n");
     return 0;
@@ -767,19 +756,7 @@ tunnel_decap(const uint8_t *ipv4packet, const uint16_t ipv4packet_len,
       return 0;
     }
 
-
-  /* Now we translate the transport layer port numbers. We assume that
-     the IPv4 packet is a response to a packet that has previously
-     been translated from IPv6 to IPv4. If this is the case, the tuple
-     (protocol, destport, srcport, srcaddress) corresponds to an address/port
-     pair in our mapping table. If we do not find a mapping, we return
-     0 to indicate that we could not translate the IPv4 packet to an
-     IPv6 packet. */
-
-  /* XXX treat a few ports differently: those ports should be let
-     through to the local host. For those ports, we set up an address
-     mapping that ensures that the local port number is retained. */
-
+    /* Packets with ports within EPHEMERAL_PORTRANGE handled locally */
     if((v4hdr->proto == IP_PROTO_TCP || v4hdr->proto == IP_PROTO_UDP)) {
     	if(uip_htons(tcphdr->destport) < EPHEMERAL_PORTRANGE) {
     		/* This packet should go to the local host. */

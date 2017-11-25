@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Thingsquare, http://www.thingsquare.com/.
+ * Copyright (c) 2017, Copyright Arman Gungor
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,12 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  *
+ *
+ * Author  : Arman Gungor gungor@kth.se
+ * Created : 2017-11-01
+ *
  */
+
 #include "net/ip/uip.h"
 #include "net/ipv6/uip-ds6.h"
 #include "dev/slip.h"

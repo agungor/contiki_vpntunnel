@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, Thingsquare, http://www.thingsquare.com/.
+ * Copyright (c) 2017, Copyright Arman Gungor
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
