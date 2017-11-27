@@ -12,6 +12,7 @@ public class Tunnel{
 	String sicsEPaddrString="130.237.20.137";//6EP IP address
 	InetAddress sixEpAddress;
 	int remotPort;
+	public StateTable stable;
 
 	public Tunnel(){
 		start(); //when we create an object of this type, start will directly run.
@@ -28,8 +29,8 @@ public class Tunnel{
 				System.out.println("waiting for a packet");
 				connectionSocket.receive(rcvPkt); //by this line, our buffer rcvDataBuf is full with data.
 				this.remotPort=rcvPkt.getPort();
-				System.out.println("just received a connection from src port: "+ this.remotPort);
-				System.out.println("have just returned from rcv of lengh: "+ pktLength);
+				System.out.print("packet received from 6EP, source port: "+ this.remotPort);
+				System.out.println(", packet lengh: "+ pktLength);
 				
 				/*
 				 * The if-statement below is to be activated when we test on hardware.
@@ -55,7 +56,6 @@ public class Tunnel{
 	 * The tunnel is implemented on a separate thread
 	 * */
 	private void process_packet_from_6ep(DatagramSocket socket, DatagramPacket packet, int pktLength){
-		System.out.println("processing the connection");
 		SixEpReader readFrom6Ep=new SixEpReader(this, socket, packet, pktLength);
 		new Thread(readFrom6Ep).start();
 		synchronized(readFrom6Ep){
@@ -72,6 +72,17 @@ public class Tunnel{
 	
     public static void main(String[] args) {
     	Tunnel tun=new Tunnel();
+    	/*StateTable st=new StateTable();
+		StateTableEntry e=new StateTableEntry();
+		e.setIep_sending_port(10);
+		e.setNode_ipv6(sixEpAddress);
+		e.setNode_src_port(11);
+		e.setProtocol_type(1);
+		e.setRemote_server_ipv6(sixEpAddress);
+		e.setRemote_server_port(12);
+		e.setTimestamp();
+		st.add(e);
+		st.remove(e);*/
     	
     }
 }

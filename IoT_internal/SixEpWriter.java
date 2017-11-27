@@ -12,9 +12,10 @@ import java.io.UncheckedIOException;
 public class SixEpWriter implements Runnable{
 	Tunnel tun;
 	//DatagramSocket socket;
-	String sicsEPaddr="130.237.20.137";//6EP IP address
+	String sixEPaddrString="130.237.20.137";//6EP IP address
+	//String sixEPaddr="130.229.47.204";//Dimas IP address
 	InetAddress sepAddress;
-	private int sepPort=666;
+	private int sepPort=8000;
 	private static final int DATA_SIZE=200;
 	byte [] rcvDataBuf=new byte[DATA_SIZE]; //a buffer to put the data from 6EP in.
 	ByteBuffer outDataBuf=ByteBuffer.allocateDirect(DATA_SIZE);
@@ -29,7 +30,7 @@ public class SixEpWriter implements Runnable{
 	int remotePort;
 	public SixEpWriter(Tunnel tun, int remotePort, DatagramPacket rcvPacket, int pktLength, SixEpReader reader){
 		try{
-			this.sepAddress=InetAddress.getByName(this.sicsEPaddr);		
+			this.sepAddress=InetAddress.getByName(this.sixEPaddrString);		
 		}catch(IOException e){
 			System.out.println("ioexception");
 		}
@@ -75,17 +76,18 @@ public class SixEpWriter implements Runnable{
 		 * application data
 		 * */
 		this.outDataBuf.clear();
-		this.outDataBuf.put(this.reader.ipv6Src);
-		this.outDataBuf.put(this.reader.portSrc);
 		this.outDataBuf.put(this.reader.ipv6Dst);
 		this.outDataBuf.put(this.reader.portDst);
+		this.outDataBuf.put(this.reader.ipv6Src);
+		this.outDataBuf.put(this.reader.portSrc);
 		this.outDataBuf.put(this.appData);
 		
 		//add the buffer to the DatagramPacket object
 
 		//this.sepAddress=dp.getAddress(); //for demo purpose only
 		System.out.print("ipStr:");
-		InetAddress laddr=InetAddress.getByName("localhost");
+		InetAddress laddr=InetAddress.getByName(this.sixEPaddrString);
+		//InetAddress laddr=InetAddress.getByName("localhost");
 		System.out.println(laddr.getHostAddress());
 		System.out.print("remotePort:");
 		//int remotePort=this.socket.getPort();
@@ -96,8 +98,9 @@ public class SixEpWriter implements Runnable{
 		this.outDataBuf.flip();
 		byte [] outDataArray=new byte[this.outDataBuf.limit()];
 		this.outDataBuf.get(outDataArray);
+		System.out.println("tha array to be sent as a reply contains the folloing info:");
 		for(int i=0; i<outDataArray.length; i++){
-			System.out.print("tha array to be sent as a reply contains the folloing info:"+(char)outDataArray[i]+"\n");
+			System.out.print(outDataArray[i]);
 		}
 		
 		DatagramPacket pktToBeSent=new DatagramPacket(outDataArray, outDataArray.length, laddr, this.remotePort);
