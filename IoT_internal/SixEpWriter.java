@@ -13,9 +13,8 @@ public class SixEpWriter implements Runnable{
 	Tunnel tun;
 	//DatagramSocket socket;
 	String sixEPaddrString="130.237.20.137";//6EP IP address
-	//String sixEPaddr="130.229.47.204";//Dimas IP address
-	InetAddress sepAddress;
-	private int sepPort=8000;
+	InetAddress sixEpAddress;
+	private int sixEpPort=8000;
 	private static final int DATA_SIZE=200;
 	byte [] rcvDataBuf=new byte[DATA_SIZE]; //a buffer to put the data from 6EP in.
 	ByteBuffer outDataBuf=ByteBuffer.allocateDirect(DATA_SIZE);
@@ -30,7 +29,7 @@ public class SixEpWriter implements Runnable{
 	int remotePort;
 	public SixEpWriter(Tunnel tun, int remotePort, DatagramPacket rcvPacket, int pktLength, SixEpReader reader){
 		try{
-			this.sepAddress=InetAddress.getByName(this.sixEPaddrString);		
+			this.sixEpAddress=InetAddress.getByName(this.sixEPaddrString);		
 		}catch(IOException e){
 			System.out.println("ioexception");
 		}
@@ -42,6 +41,18 @@ public class SixEpWriter implements Runnable{
 		this.remotePort=remotePort;
 	}
 	
+	public SixEpWriter(Tunnel tun, int remotePort, DatagramPacket rcvPacket, int pktLength){
+		try{
+			this.sixEpAddress=InetAddress.getByName(this.sixEPaddrString);		
+		}catch(IOException e){
+			System.out.println("ioexception");
+		}
+		this.tun=tun;
+		this.rcvPkt=rcvPacket;
+		this.rcvDataBuf=tun.rcvDataBuf;
+		this.pktLength=pktLength;
+		this.remotePort=remotePort;
+	}
 	
 	
 	@Override
@@ -55,17 +66,17 @@ public class SixEpWriter implements Runnable{
 	public void encap() throws UnknownHostException{
 		System.out.println("\ninside encap");
 		//the following part of code will be activated when we have communication with MQTT broker.
-		/*this.socket.receive(dp); //by this line, our buffer rcvDataBuf is full with data.
-		for(int i=0; i<dp.getLength(); i++){
-			this.appData=new byte[dp.getLength()];
+
+		for(int i=0; i<rcvPkt.getLength(); i++){
+			this.appData=new byte[rcvPkt.getLength()];
 			this.appData[i]=this.rcvDataBuf[i];
-		}*/
-		this.appData=new byte [5];
+		}
+		/*this.appData=new byte [5];
 		this.appData[0]=(byte) 0x68;//h
 		this.appData[1]=(byte) 0x65;//e
 		this.appData[2]=(byte) 0x6c;//l
 		this.appData[3]=(byte) 0x6c;//l
-		this.appData[4]=(byte) 0x6f;//o
+		this.appData[4]=(byte) 0x6f;//o*/
 		
 		/*
 		 * The following data is appended to the buffer to be sent:
@@ -76,12 +87,24 @@ public class SixEpWriter implements Runnable{
 		 * application data
 		 * */
 		this.outDataBuf.clear();
-		this.outDataBuf.put(this.reader.ipv6Dst);
-		this.outDataBuf.put(this.reader.portDst);
-		this.outDataBuf.put(this.reader.ipv6Src);
-		this.outDataBuf.put(this.reader.portSrc);
-		this.outDataBuf.put(this.appData);
-		
+		if(this.reader!=null){
+			this.outDataBuf.put(this.reader.ipv6Dst);
+			this.outDataBuf.put(this.reader.portDst);
+			this.outDataBuf.put(this.reader.ipv6Src);
+			this.outDataBuf.put(this.reader.portSrc);
+			this.outDataBuf.put(this.appData);			
+		}
+		else{
+			InetAddress ipv6_of_node=InetAddress.getByName("fd00::fec2:3d00:8263");
+			this.outDataBuf.put(ipv6_of_node.getAddress());//put ipv6Dst
+			int port=1515;//dst port at the node
+			this.outDataBuf.put(ByteBuffer.allocate(4).putInt(port).array());//put portDst at node
+			InetAddress ipv6_of_remoteServer=InetAddress.getByName("::ffff:130.229.132.213");
+			this.outDataBuf.put(ipv6_of_remoteServer.getAddress());//put ipv6Dst
+			int srcPort=1616;//this.remotePort;
+			this.outDataBuf.put(ByteBuffer.allocate(4).putInt(srcPort).array());//put portDst at node
+			this.outDataBuf.put(appData);
+		}
 		//add the buffer to the DatagramPacket object
 
 		//this.sepAddress=dp.getAddress(); //for demo purpose only
@@ -98,12 +121,12 @@ public class SixEpWriter implements Runnable{
 		this.outDataBuf.flip();
 		byte [] outDataArray=new byte[this.outDataBuf.limit()];
 		this.outDataBuf.get(outDataArray);
-		System.out.println("tha array to be sent as a reply contains the folloing info:");
+	/*	System.out.println("tha array to be sent as a reply contains the folloing info:");
 		for(int i=0; i<outDataArray.length; i++){
 			System.out.print(outDataArray[i]);
-		}
+		}*/
 		
-		DatagramPacket pktToBeSent=new DatagramPacket(outDataArray, outDataArray.length, laddr, this.remotePort);
+		DatagramPacket pktToBeSent=new DatagramPacket(outDataArray, outDataArray.length, laddr, this.sixEpPort);
 		
 		try {
 			DatagramSocket socket=new DatagramSocket();

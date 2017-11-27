@@ -29,28 +29,38 @@ public class Tunnel{
 				System.out.println("waiting for a packet");
 				connectionSocket.receive(rcvPkt); //by this line, our buffer rcvDataBuf is full with data.
 				this.remotPort=rcvPkt.getPort();
-				System.out.print("packet received from 6EP, source port: "+ this.remotPort);
-				System.out.println(", packet lengh: "+ pktLength);
-				
+
 				/*
 				 * The if-statement below is to be activated when we test on hardware.
 				 * For now we are testing in local machine.
 				 * */
+				long start=0;
+				long stop;
+				long elapsedArray[]=new long[100];
+				int index=0;
 				if(connectionSocket.getInetAddress()==this.sixEpAddress){
+					System.out.print("packet received from 6EP, source port: "+ this.remotPort);
+					System.out.println(", packet lengh: "+ pktLength);
 					//process_packet_from_6ep
+					process_packet_from_6ep(connectionSocket, rcvPkt, pktLength); //for demo purpose only
+					stop=System.nanoTime();//stop timer
+					if(start>0 &&index<100){
+						elapsedArray[index]=stop-start;
+						index++;
+					}
 				}
 				else{
-					//process_packet_to_6ep
+					process_packet_from_remote_server(connectionSocket, rcvPkt, pktLength);
+					start=System.nanoTime();//start timer
 				}
-				process_packet_from_6ep(connectionSocket, rcvPkt, pktLength); //for demo purpose only
+				//process_packet_to_6ep
 				//process_packet_to_6ep(connectionSocket, rcvPkt, pktLength);
-				
 			}
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
-	
+
 	/*
 	 * The function process_connection takes a connection that is received on a socket and pass it to the tunnel.
 	 * The tunnel is implemented on a separate thread
@@ -59,20 +69,27 @@ public class Tunnel{
 		SixEpReader readFrom6Ep=new SixEpReader(this, socket, packet, pktLength);
 		new Thread(readFrom6Ep).start();
 		synchronized(readFrom6Ep){
-    		try {
-    			readFrom6Ep.wait();
-    		}catch(InterruptedException e){
-    			e.printStackTrace();
-    		}
-    	}
+			try {
+				readFrom6Ep.wait();
+			}catch(InterruptedException e){
+				e.printStackTrace();
+			}
+		}
 		SixEpWriter writeTo6Ep=new SixEpWriter(this, this.remotPort, packet, pktLength, readFrom6Ep);
 		new Thread(writeTo6Ep).start();
-		
+
 	}
-	
-    public static void main(String[] args) {
-    	Tunnel tun=new Tunnel();
-    	/*StateTable st=new StateTable();
+
+	private void process_packet_from_remote_server(DatagramSocket socket, DatagramPacket packet, int pktLength){
+		//(Tunnel tun, int remotePort, DatagramPacket rcvPacket, int pktLength, SixEpReader reader)
+		SixEpWriter writeTo6Ep=new SixEpWriter(this, this.remotPort, packet, pktLength);
+		new Thread(writeTo6Ep).start();
+	}
+
+
+	public static void main(String[] args) {
+		Tunnel tun=new Tunnel();
+		/*StateTable st=new StateTable();
 		StateTableEntry e=new StateTableEntry();
 		e.setIep_sending_port(10);
 		e.setNode_ipv6(sixEpAddress);
@@ -83,6 +100,6 @@ public class Tunnel{
 		e.setTimestamp();
 		st.add(e);
 		st.remove(e);*/
-    	
-    }
+
+	}
 }
