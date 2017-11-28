@@ -102,9 +102,10 @@ struct ipv4_hdr {
 
 #define EPHEMERAL_PORTRANGE 1024
 
-#define IPV6_HDRLEN 40
-#define IPV4_HDRLEN 20
-#define UDP_HDRLEN	8
+#define IPV6_HDRLEN 	40
+#define IPV4_HDRLEN 	20
+#define ICMP4_HDRLEN	16
+#define UDP_HDRLEN		8
 
 #define IP_PROTO_ICMPV4  1
 #define IP_PROTO_TCP     6
@@ -392,8 +393,6 @@ tunnel_encap(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
 	 &ipv6packet[IPV6_HDRLEN],
 	 ipv6len - IPV6_HDRLEN);
 
-  //encapip6 = ( uint8_t *)&resultpacket[IPV4_HDRLEN];
-  //encapport = (struct uint8_t *)&resultpacket[IPV4_HDRLEN+16];
   udphdr = (struct udp_hdr *)&resultpacket[IPV4_HDRLEN];
   tcphdr = (struct tcp_hdr *)&resultpacket[IPV4_HDRLEN];
   icmpv4hdr = (struct icmpv4_hdr *)&resultpacket[IPV4_HDRLEN];
@@ -427,7 +426,8 @@ tunnel_encap(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
      IPv6 next header numbers, the ICMPv4 and ICMPv6 numbers are
      different so we cannot simply copy the contents of the IPv6 next
      header field. */
-  switch(v6hdr->nxthdr) {
+  uint8_t prototype = v6hdr->nxthdr;
+  switch(prototype) {
   case IP_PROTO_TCP:
     PRINTF("tunnel_encap: TCP header\n");
     v4hdr->proto = IP_PROTO_TCP;
@@ -439,7 +439,6 @@ tunnel_encap(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
                                IP_PROTO_TCP) != 0xffff) {
       PRINTF("Bad TCP checksum, dropping packet\n");
     }
-
     break;
 
   case IP_PROTO_UDP:
@@ -469,7 +468,10 @@ tunnel_encap(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
     /* Translate only ECHO_REPLY messages. */
     if(icmpv6hdr->type == ICMP6_ECHO_REPLY) {
       icmpv4hdr->type = ICMP_ECHO_REPLY;
-    } else {
+    } else if(icmpv6hdr->type == ICMP6_ECHO) {
+    	icmpv4hdr->type = ICMP_ECHO;
+    }
+    else{
       PRINTF("tunnel_encap: ICMPv6 mapping for type %d not implemented.\n",
 	     icmpv6hdr->type);
       return 0;
@@ -527,22 +529,29 @@ tunnel_encap(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
   {
 	  uip_ip6addr_t dest_addr;
 	  uip_ip6addr_t src_addr;
-	  uint16_t dest_port;
-	  uint16_t src_port;
+	  uint16_t dest_port = 0;
+	  uint16_t src_port = 0;
 	  uint16_t udplen;
 
 	  //set IEP ipv4 address
 	  tunnel_addr_set_dest(&v4hdr->destipaddr, TUNNEL_DST_ADDR0, TUNNEL_DST_ADDR1, TUNNEL_DST_ADDR2, TUNNEL_DST_ADDR3);
 
+	  if(prototype == IP_PROTO_UDP || prototype == IP_PROTO_TCP) {
+		  dest_port = udphdr->destport;
+		  src_port = udphdr->srcport;
+
+	  }
+	  else if(prototype == IP_PROTO_ICMPV6) {
+		  memmove(&resultpacket[IPV4_HDRLEN + UDP_HDRLEN],
+		  	  	 &resultpacket[IPV4_HDRLEN],
+		  	  	 ipv6len - IPV6_HDRLEN);
+		  udphdr = (struct udp_hdr *)&resultpacket[IPV4_HDRLEN];
+		  udphdr->udplen = uip_htons(ipv4len - ICMP4_HDRLEN - IPV4_HDRLEN);
+		  ipv4len += UDP_HDRLEN;
+	  }
 	  //store original source and destination address & port of the packet
 	  dest_addr = v6hdr->destipaddr;
-	  dest_port = udphdr->destport;
 	  src_addr = v6hdr->srcipaddr;
-	  src_port = udphdr->srcport;
-
-	  //set ipv4 tunnel packet udp packet source & dest port
-	  udphdr->srcport = uip_htons(TUNNEL_SRC_PORT);
-	  udphdr->destport = uip_htons(TUNNEL_DST_PORT);
 
 	  //source ipv6 address (16 byte) + port number (2 bytes)
 	  //dest ipv6 address (16 byte) + port number (2 bytes)
@@ -550,6 +559,11 @@ tunnel_encap(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
 	  ipv4len += 36;
 	  v4hdr->len[0] = ipv4len >> 8;
 	  v4hdr->len[1] = ipv4len & 0xff;
+	  v4hdr->proto = IP_PROTO_UDP;
+
+	  //set ipv4 tunnel packet udp packet source & dest port
+	  udphdr->srcport = uip_htons(TUNNEL_SRC_PORT);
+	  udphdr->destport = uip_htons(TUNNEL_DST_PORT);
 	  udplen = uip_ntohs(udphdr->udplen);
 	  udplen += 36;
 	  udphdr->udplen = uip_htons(udplen);
