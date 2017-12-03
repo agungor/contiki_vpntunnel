@@ -74,18 +74,16 @@ static void
 tcpip_handler(void)
 {
 	char *str;
-	char *msg = NULL;
-	int server_seq;
 	char buf[MAX_PAYLOAD_LEN];
 	if(uip_newdata()) {
 		str = uip_appdata;
 		str[uip_datalen()] = '\0';
 		reply++;
 		printf("DATA recv '%s' (s:%d, r:%d)\n", str, seq_id, reply);
-		sscanf(str, "%s:%d", msg, &server_seq);
-		sprintf(buf, "Reply %s:%d", msg, server_seq);
+		memcpy(buf, "Reply ", 6);
+		memcpy(&buf[6], str, uip_datalen());
 		printf("DATA sent: %s\n",buf);
-		uip_udp_packet_sendto(client_conn, buf, strlen(buf),
+		uip_udp_packet_sendto(client_conn, buf, (6+uip_datalen()),
 				&server_ipaddr, UIP_HTONS(UDP_SERVER_PORT));
 	}
 }
