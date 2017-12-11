@@ -30,6 +30,7 @@
 #include "contiki.h"
 #include "lib/random.h"
 #include "sys/ctimer.h"
+#include "sys/rtimer.h"
 #include "net/ip/uip.h"
 #include "net/ipv6/uip-ds6.h"
 #include "net/ip/uip-udp-packet.h"
@@ -69,6 +70,7 @@ AUTOSTART_PROCESSES(&udp_client_process);
 /*---------------------------------------------------------------------------*/
 static int seq_id;
 static int reply;
+static rtimer_clock_t send_time = 0;
 
 static void
 tcpip_handler(void)
@@ -79,7 +81,7 @@ tcpip_handler(void)
     str = uip_appdata;
     str[uip_datalen()] = '\0';
     reply++;
-    printf("DATA recv '%s' (s:%d, r:%d)\n", str, seq_id, reply);
+    printf("DATA recv '%s' elapsed time: %d (s:%d, r:%d)\n", str, RTIMER_NOW()-send_time, seq_id, reply);
   }
 }
 /*---------------------------------------------------------------------------*/
@@ -107,10 +109,11 @@ send_packet(void *ptr)
   seq_id++;
   PRINTF("DATA send to ");
   PRINT6ADDR(&server_ipaddr);
-  PRINTF(" 'Message from node[8263] %d'\n", seq_id);
-  sprintf(buf, "Message from node[8263] %d", seq_id);
+  PRINTF(" 'Hello %d'\n", seq_id);
+  sprintf(buf, "Hello %d", seq_id);
   uip_udp_packet_sendto(client_conn, buf, strlen(buf),
                         &server_ipaddr, UIP_HTONS(UDP_SERVER_PORT));
+  send_time = RTIMER_NOW();
 }
 /*---------------------------------------------------------------------------*/
 static void
