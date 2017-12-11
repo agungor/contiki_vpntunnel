@@ -105,6 +105,7 @@ struct ipv4_hdr {
 #define IPV6_HDRLEN 	40
 #define IPV4_HDRLEN 	20
 #define ICMP4_HDRLEN	16
+#define TCP_HDRLEN		20
 #define UDP_HDRLEN		8
 
 #define IP_PROTO_ICMPV4  1
@@ -367,6 +368,7 @@ tunnel_encap(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
 {
   struct ipv4_hdr *v4hdr;
   struct ipv6_hdr *v6hdr;
+  struct udp_hdr *tunneludphdr;
   struct udp_hdr *udphdr;
   struct tcp_hdr *tcphdr;
   struct icmpv4_hdr *icmpv4hdr;
@@ -527,63 +529,33 @@ tunnel_encap(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
 
   if((uip_ntohs(udphdr->srcport) >= EPHEMERAL_PORTRANGE))
   {
-	  uip_ip6addr_t dest_addr;
-	  uip_ip6addr_t src_addr;
-	  uint16_t dest_port = 0;
-	  uint16_t src_port = 0;
-	  uint16_t udplen;
-
 	  //set IEP ipv4 address
 	  tunnel_addr_set_dest(&v4hdr->destipaddr, TUNNEL_DST_ADDR0, TUNNEL_DST_ADDR1, TUNNEL_DST_ADDR2, TUNNEL_DST_ADDR3);
 
-	  if(prototype == IP_PROTO_UDP || prototype == IP_PROTO_TCP) {
-		  dest_port = udphdr->destport;
-		  src_port = udphdr->srcport;
-
-	  }
-	  else if(prototype == IP_PROTO_ICMPV6) {
-		  memmove(&resultpacket[IPV4_HDRLEN + UDP_HDRLEN],
-		  	  	 &resultpacket[IPV4_HDRLEN],
-		  	  	 ipv6len - IPV6_HDRLEN);
-		  udphdr = (struct udp_hdr *)&resultpacket[IPV4_HDRLEN];
-		  udphdr->udplen = uip_htons(ipv4len - ICMP4_HDRLEN - IPV4_HDRLEN);
-		  ipv4len += UDP_HDRLEN;
-	  }
-	  //store original source and destination address & port of the packet
-	  dest_addr = v6hdr->destipaddr;
-	  src_addr = v6hdr->srcipaddr;
-
-	  //source ipv6 address (16 byte) + port number (2 bytes)
-	  //dest ipv6 address (16 byte) + port number (2 bytes)
-	  //total size = 36 bytes
-	  ipv4len += 36;
+	  ipv4len += IPV6_HDRLEN + UDP_HDRLEN;
 	  v4hdr->len[0] = ipv4len >> 8;
 	  v4hdr->len[1] = ipv4len & 0xff;
 	  v4hdr->proto = IP_PROTO_UDP;
 
-	  //set ipv4 tunnel packet udp packet source & dest port
-	  udphdr->srcport = uip_htons(TUNNEL_SRC_PORT);
-	  udphdr->destport = uip_htons(TUNNEL_DST_PORT);
-	  udplen = uip_ntohs(udphdr->udplen);
-	  udplen += 36;
-	  udphdr->udplen = uip_htons(udplen);
-
-	  uint8_t payload_start = IPV4_HDRLEN + UDP_HDRLEN;
-
-	  //insert tunnel data (source ip/port dest ip/port) to beginning of payload
-	  memmove(&resultpacket[payload_start+36],
-	  	 &resultpacket[payload_start],
+	  //allocate space for tunneludp header after IPv4 header so tunneludp header can fit
+	  memmove(&resultpacket[IPV4_HDRLEN+IPV6_HDRLEN+UDP_HDRLEN],
+	  	 &resultpacket[IPV4_HDRLEN],
 	  	 ipv6len - IPV6_HDRLEN);
-	  memcpy(&resultpacket[payload_start],
-			  &src_addr,
-			  sizeof(src_addr));
-	  resultpacket[payload_start+16] = src_port & 0xff;
-	  resultpacket[payload_start+17] = src_port >> 8;
-	  memcpy(&resultpacket[payload_start+18],
-			  &dest_addr,
-			  sizeof(dest_addr));
-	  resultpacket[payload_start+34] = dest_port & 0xff;
-	  resultpacket[payload_start+35] = dest_port >> 8;
+
+	  tunneludphdr = (struct udp_hdr *)&resultpacket[IPV4_HDRLEN];
+	  //set ipv4 tunnel packet udp packet source & dest port
+	  tunneludphdr->srcport = uip_htons(TUNNEL_SRC_PORT);
+	  tunneludphdr->destport = uip_htons(TUNNEL_DST_PORT);
+	  tunneludphdr->udplen = uip_htons(ipv4len-IPV4_HDRLEN);
+
+	  //insert tunneludp header
+	  memcpy(&resultpacket[IPV4_HDRLEN],
+			  tunneludphdr,
+	  			  UDP_HDRLEN);
+	  //insert original IPv6 header coming from node
+	  memcpy(&resultpacket[IPV4_HDRLEN+UDP_HDRLEN],
+	  			  v6hdr,
+				  IPV6_HDRLEN);
   }
   else
 	  PRINTF("packet in EPHEMERAL_PORTRANGE srcport: %d\n", uip_ntohs(udphdr->srcport));
@@ -702,21 +674,6 @@ tunnel_decap(const uint8_t *ipv4packet, const uint16_t ipv4packet_len,
   switch(v4hdr->proto) {
   case IP_PROTO_UDP:
     v6hdr->nxthdr = IP_PROTO_UDP;
-    /* Check if this is a DNS request. If so, we should rewrite it
-       with the DNS64 module. */
-    if(udphdr->srcport == UIP_HTONS(DNS_PORT)) {
-      int len;
-
-      len = tunnel_dns64_4to6((uint8_t *)v4hdr + IPV4_HDRLEN + sizeof(struct udp_hdr),
-                            ipv4len - IPV4_HDRLEN - sizeof(struct udp_hdr),
-                            (uint8_t *)v6hdr + IPV6_HDRLEN + sizeof(struct udp_hdr),
-                            ipv6_packet_len - sizeof(struct udp_hdr));
-      ipv6_packet_len = len + sizeof(struct udp_hdr);
-      v6hdr->len[0] = ipv6_packet_len >> 8;
-      v6hdr->len[1] = ipv6_packet_len & 0xff;
-      ipv6len = ipv6_packet_len + IPV6_HDRLEN;
-
-    }
     break;
 
   case IP_PROTO_TCP:
@@ -781,84 +738,54 @@ tunnel_decap(const uint8_t *ipv4packet, const uint16_t ipv4packet_len,
     }
   }
 
-  if((uip_ntohs(udphdr->srcport) >= EPHEMERAL_PORTRANGE))
+  if((uip_ntohs(tcphdr->destport) >= EPHEMERAL_PORTRANGE))
   {
+	  //packet is coming from IEP
 	  uip_ip6addr_t dest_addr;
 	  uip_ip6addr_t src_addr;
 	  uint16_t dest_port;
 	  uint16_t src_port;
 	  uint16_t udplen;
 
-	  uint8_t payload_start = IPV6_HDRLEN + UDP_HDRLEN;
-
-	  memcpy(&src_addr,
-			  &resultpacket[payload_start],
-			  sizeof(src_addr));
-	  memcpy(&src_port,
-			  &resultpacket[payload_start+16],
-			  sizeof(src_port));
-	  memcpy(&dest_addr,
-			  &resultpacket[payload_start+18],
-			  sizeof(dest_addr));
-	  memcpy(&dest_port,
-			  &resultpacket[payload_start+34],
-			  sizeof(dest_port));
-	  //remove tunnel data (source ip/port dest ip/port)
-	  memmove(&resultpacket[payload_start],
-			  &resultpacket[payload_start+36],
+	  //decapsulation, discard IP and UDP headers.
+	  memmove(resultpacket,
+			  &resultpacket[IPV6_HDRLEN + UDP_HDRLEN],
 			  ipv4len - IPV4_HDRLEN - UDP_HDRLEN);
-
-	  //source ipv6 address (16 byte) + port number (2 bytes)
-	  //dest ipv6 address (16 byte) + port number (2 bytes)
-	  //total size = 36 bytes
-	  ipv6_packet_len -= 36;
-	  v6hdr->len[0] = ipv6_packet_len >> 8;
-	  v6hdr->len[1] = ipv6_packet_len & 0xff;
-	  ipv6len = ipv6_packet_len + IPV6_HDRLEN;
-
-	  udplen = uip_ntohs(udphdr->udplen);
-	  udplen -= 36;
-	  udphdr->udplen = uip_htons(udplen);
-
-	  udphdr->srcport = src_port;
-	  udphdr->destport = dest_port;
-
-	  tunnel_addr_copy6(&v6hdr->destipaddr, &dest_addr);
-	  tunnel_addr_copy6(&v6hdr->srcipaddr, &src_addr);
   }
   else
+  {
 	  PRINTF("packet in EPHEMERAL_PORTRANGE srcport: %d\n", uip_ntohs(udphdr->srcport));
+	  /* The checksum is in different places in the different protocol
+	         headers, so we need to be sure that we update the correct
+	         field. */
+	  switch(v6hdr->nxthdr) {
+	  case IP_PROTO_TCP:
+		  tcphdr->tcpchksum = 0;
+		  tcphdr->tcpchksum = ~(ipv6_transport_checksum(resultpacket,
+				  ipv6len,
+				  IP_PROTO_TCP));
+		  break;
+	  case IP_PROTO_UDP:
+		  udphdr->udpchksum = 0;
+		  udphdr->udpchksum = ~(ipv6_transport_checksum(resultpacket,
+				  ipv6len,
+				  IP_PROTO_UDP));
+		  if(udphdr->udpchksum == 0) {
+			  udphdr->udpchksum = 0xffff;
+		  }
+		  break;
 
-  /* The checksum is in different places in the different protocol
-       headers, so we need to be sure that we update the correct
-       field. */
-    switch(v6hdr->nxthdr) {
-    case IP_PROTO_TCP:
-      tcphdr->tcpchksum = 0;
-      tcphdr->tcpchksum = ~(ipv6_transport_checksum(resultpacket,
-  						  ipv6len,
-  						  IP_PROTO_TCP));
-      break;
-    case IP_PROTO_UDP:
-      udphdr->udpchksum = 0;
-      udphdr->udpchksum = ~(ipv6_transport_checksum(resultpacket,
-  						  ipv6len,
-  						  IP_PROTO_UDP));
-      if(udphdr->udpchksum == 0) {
-        udphdr->udpchksum = 0xffff;
-      }
-      break;
-
-    case IP_PROTO_ICMPV6:
-      icmpv6hdr->icmpchksum = 0;
-      icmpv6hdr->icmpchksum = ~(ipv6_transport_checksum(resultpacket,
-                                                  ipv6len,
-                                                  IP_PROTO_ICMPV6));
-      break;
-    default:
-      PRINTF("tunnel_decap: transport protocol %d not implemented\n", v4hdr->proto);
-      return 0;
-    }
+	  case IP_PROTO_ICMPV6:
+		  icmpv6hdr->icmpchksum = 0;
+		  icmpv6hdr->icmpchksum = ~(ipv6_transport_checksum(resultpacket,
+				  ipv6len,
+				  IP_PROTO_ICMPV6));
+		  break;
+	  default:
+		  PRINTF("tunnel_decap: transport protocol %d not implemented\n", v4hdr->proto);
+		  return 0;
+	  }
+  }
 
   /* Finally, we return the length of the resulting IPv6 packet. */
   PRINTF("tunnel_decap: ipv6len %d\n", ipv6len);
