@@ -554,7 +554,7 @@ tunnel_encap(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
 
   udphdr = (struct udp_hdr *)&ipv6packet[IPV6_HDRLEN];
 
-  //handle packets in ephemeral port range locally (i.e. DHCP packet)
+  /* handle packets in ephemeral port range locally (i.e. DHCP packet) */
   if(uip_ntohs(udphdr->srcport) < EPHEMERAL_PORTRANGE)
 	  return local_packet_6to4(ipv6packet, ipv6packet_len, resultpacket);
 
@@ -599,9 +599,9 @@ tunnel_encap(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
      transported into to the IPv4 network. */
   v4hdr->ttl = v6hdr->hoplim;
 
-  //set 6EP source ipv4 address
+  /* set 6EP source ipv4 address */
   tunnel_addr_copy4(&v4hdr->srcipaddr, &tunnel_hostaddr);
-  //set IEP ipv4 address
+  /* set IEP ipv4 address */
   tunnel_addr_copy4(&v4hdr->destipaddr, &tunnel_destaddr);
 
   ipv4len = IPV4_HDRLEN + UDP_HDRLEN + ipv6len;
@@ -610,7 +610,7 @@ tunnel_encap(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
   v4hdr->proto = IP_PROTO_UDP;
 
   tunneludphdr = (struct udp_hdr *)&resultpacket[IPV4_HDRLEN];
-  //set ipv4 tunnel packet udp packet source & dest port
+  /* set ipv4 tunnel packet udp packet source & dest port */
   tunneludphdr->srcport = uip_htons(TUNNEL_SRC_PORT);
   tunneludphdr->destport = uip_htons(TUNNEL_DST_PORT);
   tunneludphdr->udplen = uip_htons(ipv4len-IPV4_HDRLEN);
@@ -630,164 +630,146 @@ tunnel_encap(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
 }
 /*---------------------------------------------------------------------------*/
 int
-tunnel_decap(const uint8_t *ipv4packet, const uint16_t ipv4packet_len,
+local_packet_4to6(const uint8_t *ipv4packet, const uint16_t ipv4packet_len,
 	  uint8_t *resultpacket)
 {
-  struct ipv4_hdr *v4hdr;
-  struct ipv6_hdr *v6hdr;
-  struct udp_hdr *udphdr;
-  struct tcp_hdr *tcphdr;
-  struct icmpv4_hdr *icmpv4hdr;
-  struct icmpv6_hdr *icmpv6hdr;
-  uint16_t ipv4len, ipv6len, ipv6_packet_len;
+	struct ipv4_hdr *v4hdr;
+	struct ipv6_hdr *v6hdr;
+	struct udp_hdr *udphdr;
+	struct tcp_hdr *tcphdr;
+	struct icmpv4_hdr *icmpv4hdr;
+	struct icmpv6_hdr *icmpv6hdr;
+	uint16_t ipv4len, ipv6len, ipv6_packet_len;
 
-  v6hdr = (struct ipv6_hdr *)resultpacket;
-  v4hdr = (struct ipv4_hdr *)ipv4packet;
+	v6hdr = (struct ipv6_hdr *)resultpacket;
+	v4hdr = (struct ipv4_hdr *)ipv4packet;
 
-  if((v4hdr->len[0] << 8) + v4hdr->len[1] <= ipv4packet_len) {
-    ipv4len = (v4hdr->len[0] << 8) + v4hdr->len[1];
-  } else {
-    PRINTF("tunnel_decap: packet smaller than reported in IPv4 header, dropping\n");
-    return 0;
-  }
+	if((v4hdr->len[0] << 8) + v4hdr->len[1] <= ipv4packet_len) {
+		ipv4len = (v4hdr->len[0] << 8) + v4hdr->len[1];
+	} else {
+		PRINTF("local_packet_4to6: packet smaller than reported in IPv4 header, dropping\n");
+		return 0;
+	}
 
-  if(ipv4len <= IPV4_HDRLEN) {
-    return 0;
-  }
+	if(ipv4len <= IPV4_HDRLEN) {
+		return 0;
+	}
 
-  /* Make sure that the resulting packet fits in the tunnel packet
-     buffer. If not, we drop it. */
-  if(ipv4len - IPV4_HDRLEN + IPV6_HDRLEN > BUFSIZE) {
-    PRINTF("tunnel_decap: packet too big to fit in buffer, dropping\n");
-    return 0;
-  }
-  /* We copy the data from the IPv4 packet into the IPv6 packet. */
-  memcpy(&resultpacket[IPV6_HDRLEN],
-	 &ipv4packet[IPV4_HDRLEN],
-	 ipv4len - IPV4_HDRLEN);
-  
-  udphdr = (struct udp_hdr *)&resultpacket[IPV6_HDRLEN];
-  tcphdr = (struct tcp_hdr *)&resultpacket[IPV6_HDRLEN];
-  icmpv4hdr = (struct icmpv4_hdr *)&ipv4packet[IPV4_HDRLEN];
-  icmpv6hdr = (struct icmpv6_hdr *)&resultpacket[IPV6_HDRLEN];
+	/* Make sure that the resulting packet fits in the tunnel packet
+	     buffer. If not, we drop it. */
+	if(ipv4len - IPV4_HDRLEN + IPV6_HDRLEN > BUFSIZE) {
+		PRINTF("local_packet_4to6: packet too big to fit in buffer, dropping\n");
+		return 0;
+	}
+	/* We copy the data from the IPv4 packet into the IPv6 packet. */
+	memcpy(&resultpacket[IPV6_HDRLEN],
+			&ipv4packet[IPV4_HDRLEN],
+			ipv4len - IPV4_HDRLEN);
 
-  ipv6len = ipv4len - IPV4_HDRLEN + IPV6_HDRLEN;
-  ipv6_packet_len = ipv6len - IPV6_HDRLEN;
+	udphdr = (struct udp_hdr *)&resultpacket[IPV6_HDRLEN];
+	tcphdr = (struct tcp_hdr *)&resultpacket[IPV6_HDRLEN];
+	icmpv4hdr = (struct icmpv4_hdr *)&ipv4packet[IPV4_HDRLEN];
+	icmpv6hdr = (struct icmpv6_hdr *)&resultpacket[IPV6_HDRLEN];
 
-  /* Translate the IPv4 header into an IPv6 header. */
+	ipv6len = ipv4len - IPV4_HDRLEN + IPV6_HDRLEN;
+	ipv6_packet_len = ipv6len - IPV6_HDRLEN;
 
-  /* We first fill in the simple fields: IP header version, traffic
-     class and flow label, and length fields. */
-  v6hdr->vtc = 0x60;
-  v6hdr->tcflow = 0;
-  v6hdr->flow = 0;
-  v6hdr->len[0] = ipv6_packet_len >> 8;
-  v6hdr->len[1] = ipv6_packet_len & 0xff;
+	/* Translate the IPv4 header into an IPv6 header. */
 
-  /* We use the IPv4 TTL field as the IPv6 hop limit field. */
-  v6hdr->hoplim = v4hdr->ttl;
+	/* We first fill in the simple fields: IP header version, traffic
+	     class and flow label, and length fields. */
+	v6hdr->vtc = 0x60;
+	v6hdr->tcflow = 0;
+	v6hdr->flow = 0;
+	v6hdr->len[0] = ipv6_packet_len >> 8;
+	v6hdr->len[1] = ipv6_packet_len & 0xff;
 
-  
-  /* We now translate the IPv4 source and destination addresses to
-     IPv6 source and destination addresses. We translate the IPv4
-     source address into an IPv6-encoded IPv4 address. The IPv4
-     destination address will be the address with which we have
-     previously been configured, through the tunnel_set_ipv4_address()
-     function. */
-  if(tunnel_addr_4to6(&v4hdr->srcipaddr, &v6hdr->srcipaddr) == 0) {
-    PRINTF("tunnel_packet_decap: failed to convert source IP address\n");
-    return 0;
-  }
+	/* We use the IPv4 TTL field as the IPv6 hop limit field. */
+	v6hdr->hoplim = v4hdr->ttl;
 
-    /* For the next header field, we simply use the IPv4 protocol
-     field. We only support UDP and TCP packets. */
-  switch(v4hdr->proto) {
-  case IP_PROTO_UDP:
-    v6hdr->nxthdr = IP_PROTO_UDP;
-    break;
+	/* We now translate the IPv4 source and destination addresses to
+	     IPv6 source and destination addresses. We translate the IPv4
+	     source address into an IPv6-encoded IPv4 address. The IPv4
+	     destination address will be the address with which we have
+	     previously been configured, through the tunnel_set_ipv4_address()
+	     function. */
+	if(tunnel_addr_4to6(&v4hdr->srcipaddr, &v6hdr->srcipaddr) == 0) {
+		PRINTF("local_packet_4to6: failed to convert source IP address\n");
+		return 0;
+	}
 
-  case IP_PROTO_TCP:
-    v6hdr->nxthdr = IP_PROTO_TCP;
-    break;
+	/* For the next header field, we simply use the IPv4 protocol
+	     field. We only support UDP and TCP packets. */
+	switch(v4hdr->proto) {
+	case IP_PROTO_UDP:
+		v6hdr->nxthdr = IP_PROTO_UDP;
+		break;
 
-  case IP_PROTO_ICMPV4:
-    /* Allow only ICMPv4 ECHO_REQUESTS (ping packets) through to the
-       local IPv6 host. */
-    if(icmpv4hdr->type == ICMP_ECHO) {
-      PRINTF("tunnel_decap: translating ICMPv4 ECHO packet\n");
-      v6hdr->nxthdr = IP_PROTO_ICMPV6;
-      icmpv6hdr->type = ICMP6_ECHO;
-      tunnel_addr_copy6(&v6hdr->destipaddr, &ipv6_local_address);
-    } else {
-      PRINTF("tunnel_packet_decap: ICMPv4 packet type %d not supported\n",
-	     icmpv4hdr->type);
-      return 0;
-    }
-    break;
+	case IP_PROTO_TCP:
+		v6hdr->nxthdr = IP_PROTO_TCP;
+		break;
 
-  default:
-    /* For protocol types that we do not support, we return 0 to
-       indicate that we failed to translate the packet to an IPv6
-       packet. */
-    PRINTF("tunnel_packet_decap: protocol type %d not supported\n",
-	   v4hdr->proto);
-    return 0;
-  }
+	case IP_PROTO_ICMPV4:
+		/* Allow only ICMPv4 ECHO_REQUESTS (ping packets) through to the
+	       local IPv6 host. */
+		if(icmpv4hdr->type == ICMP_ECHO) {
+			PRINTF("local_packet_4to6: translating ICMPv4 ECHO packet\n");
+			v6hdr->nxthdr = IP_PROTO_ICMPV6;
+			icmpv6hdr->type = ICMP6_ECHO;
+			tunnel_addr_copy6(&v6hdr->destipaddr, &ipv6_local_address);
+		} else {
+			PRINTF("local_packet_4to6: ICMPv4 packet type %d not supported\n",
+					icmpv4hdr->type);
+			return 0;
+		}
+		break;
 
-  /* Translate IPv4 broadcasts to IPv6 all-nodes multicasts. */
-  if(uip_ip4addr_cmp(&v4hdr->destipaddr, &ipv4_broadcast_addr) ||
-     (uip_ipaddr_maskcmp(&v4hdr->destipaddr, &tunnel_hostaddr,
-			 &tunnel_netmask) &&
-      ((v4hdr->destipaddr.u16[0] & (~tunnel_netmask.u16[0])) ==
-       (ipv4_broadcast_addr.u16[0] & (~tunnel_netmask.u16[0]))) &&
-      ((v4hdr->destipaddr.u16[1] & (~tunnel_netmask.u16[1])) ==
-       (ipv4_broadcast_addr.u16[1] & (~tunnel_netmask.u16[1]))))) {
-    uip_create_linklocal_allnodes_mcast(&v6hdr->destipaddr);
-  } else {
+	default:
+		/* For protocol types that we do not support, we return 0 to
+	       indicate that we failed to translate the packet to an IPv6
+	       packet. */
+		PRINTF("local_packet_4to6: protocol type %d not supported\n",
+				v4hdr->proto);
+		return 0;
+	}
 
-    if(!tunnel_hostaddr_configured) {
-      PRINTF("tunnel_packet_decap: no local IPv4 address configured, dropping incoming packet.\n");
-      return 0;
-    }
+	/* Translate IPv4 broadcasts to IPv6 all-nodes multicasts. */
+	  if(uip_ip4addr_cmp(&v4hdr->destipaddr, &ipv4_broadcast_addr) ||
+	     (uip_ipaddr_maskcmp(&v4hdr->destipaddr, &tunnel_hostaddr,
+				 &tunnel_netmask) &&
+	      ((v4hdr->destipaddr.u16[0] & (~tunnel_netmask.u16[0])) ==
+	       (ipv4_broadcast_addr.u16[0] & (~tunnel_netmask.u16[0]))) &&
+	      ((v4hdr->destipaddr.u16[1] & (~tunnel_netmask.u16[1])) ==
+	       (ipv4_broadcast_addr.u16[1] & (~tunnel_netmask.u16[1]))))) {
+	    uip_create_linklocal_allnodes_mcast(&v6hdr->destipaddr);
+	  } else {
 
-    if(!uip_ip4addr_cmp(&v4hdr->destipaddr, &tunnel_hostaddr)) {
-      PRINTF("tunnel_packet_decap: the IPv4 destination address %d.%d.%d.%d did not match our IPv4 address %d.%d.%d.%d\n",
-	     uip_ipaddr_to_quad(&v4hdr->destipaddr),
-	     uip_ipaddr_to_quad(&tunnel_hostaddr));
-      return 0;
-    }
+		if(!tunnel_hostaddr_configured) {
+			PRINTF("local_packet_4to6: no local IPv4 address configured, dropping incoming packet.\n");
+			return 0;
+		}
 
-    /* Packets with ports within EPHEMERAL_PORTRANGE handled locally */
-    if((v4hdr->proto == IP_PROTO_TCP || v4hdr->proto == IP_PROTO_UDP)) {
-    	if(uip_htons(tcphdr->destport) < EPHEMERAL_PORTRANGE) {
-    		/* This packet should go to the local host. */
-    		PRINTF("Port is in the non-ephemeral port range %d (%d)\n",
-    				tcphdr->destport, uip_htons(tcphdr->destport));
-    		tunnel_addr_copy6(&v6hdr->destipaddr, &ipv6_local_address);
-    	}
-    }
-  }
+		if(!uip_ip4addr_cmp(&v4hdr->destipaddr, &tunnel_hostaddr)) {
+			PRINTF("local_packet_4to6: the IPv4 destination address %d.%d.%d.%d did not match our IPv4 address %d.%d.%d.%d\n",
+					uip_ipaddr_to_quad(&v4hdr->destipaddr),
+					uip_ipaddr_to_quad(&tunnel_hostaddr));
+			return 0;
+		}
 
-  if((uip_ntohs(tcphdr->destport) >= EPHEMERAL_PORTRANGE))
-  {
-	  //packet is coming from IEP
-	  uip_ip6addr_t dest_addr;
-	  uip_ip6addr_t src_addr;
-	  uint16_t dest_port;
-	  uint16_t src_port;
-	  uint16_t udplen;
+		/* Packets with ports within EPHEMERAL_PORTRANGE handled locally */
+		if((v4hdr->proto == IP_PROTO_TCP || v4hdr->proto == IP_PROTO_UDP)) {
+			if(uip_htons(tcphdr->destport) < EPHEMERAL_PORTRANGE) {
+				/* This packet should go to the local host. */
+				PRINTF("Port is in the non-ephemeral port range %d (%d)\n",
+						tcphdr->destport, uip_htons(tcphdr->destport));
+				tunnel_addr_copy6(&v6hdr->destipaddr, &ipv6_local_address);
+			}
+		}
+	}
 
-	  //decapsulation, discard IP and UDP headers.
-	  memmove(resultpacket,
-			  &resultpacket[IPV6_HDRLEN + UDP_HDRLEN],
-			  ipv4len - IPV4_HDRLEN - UDP_HDRLEN);
-  }
-  else
-  {
-	  PRINTF("packet in EPHEMERAL_PORTRANGE srcport: %d\n", uip_ntohs(udphdr->srcport));
 	  /* The checksum is in different places in the different protocol
-	         headers, so we need to be sure that we update the correct
-	         field. */
+			 headers, so we need to be sure that we update the correct
+			 field. */
 	  switch(v6hdr->nxthdr) {
 	  case IP_PROTO_TCP:
 		  tcphdr->tcpchksum = 0;
@@ -815,8 +797,73 @@ tunnel_decap(const uint8_t *ipv4packet, const uint16_t ipv4packet_len,
 		  PRINTF("tunnel_decap: transport protocol %d not implemented\n", v4hdr->proto);
 		  return 0;
 	  }
+
+	/* Finally, we return the length of the resulting IPv6 packet. */
+	PRINTF("local_packet_4to6: ipv6len %d\n", ipv6len);
+	return ipv6len;
+}
+int
+tunnel_decap(const uint8_t *ipv4packet, const uint16_t ipv4packet_len,
+	  uint8_t *resultpacket)
+{
+  struct ipv4_hdr *v4hdr;
+  struct ipv6_hdr *v6hdr;
+  struct udp_hdr *udphdr;
+  struct tcp_hdr *tcphdr;
+  struct icmpv4_hdr *icmpv4hdr;
+  struct icmpv6_hdr *icmpv6hdr;
+  uint16_t ipv4len, ipv6len, ipv6_packet_len;
+
+  v6hdr = (struct ipv6_hdr *)resultpacket;
+  v4hdr = (struct ipv4_hdr *)ipv4packet;
+
+  udphdr = (struct udp_hdr *)&ipv4packet[IPV4_HDRLEN];
+
+  PRINTF("tunnel_decap: incoming packet src address %d.%d.%d.%d:%d dst %d.%d.%d.%d:%d\n",
+  					uip_ipaddr_to_quad(&v4hdr->srcipaddr),uip_ntohs(udphdr->srcport),
+  					uip_ipaddr_to_quad(&v4hdr->destipaddr),uip_ntohs(udphdr->destport));
+
+  /* handle packets in ephemeral port range locally (i.e. DHCP packet) */
+  if(uip_ntohs(udphdr->destport) < EPHEMERAL_PORTRANGE)
+	  return local_packet_4to6(ipv4packet, ipv4packet_len, resultpacket);
+
+  /* if packet source address is not IEP tunnel address drop packet */
+  if (!uip_ip4addr_cmp(&v4hdr->srcipaddr, &tunnel_destaddr)) {
+	  PRINTF("tunnel_decap: packet source address is not IEP, dropping\n");
+	  return 0;
   }
 
+  /* if packet source port is not IEP tunnel port drop packet */
+  if (uip_ntohs(udphdr->srcport) != TUNNEL_DST_PORT) {
+	  PRINTF("tunnel_decap: packet source port is not IEP, dropping\n");
+	  return 0;
+  }
+
+  if((v4hdr->len[0] << 8) + v4hdr->len[1] <= ipv4packet_len) {
+    ipv4len = (v4hdr->len[0] << 8) + v4hdr->len[1];
+  } else {
+    PRINTF("tunnel_decap: packet smaller than reported in IPv4 header, dropping\n");
+    return 0;
+  }
+
+  if(ipv4len <= IPV4_HDRLEN) {
+    return 0;
+  }
+
+  /* Make sure that the resulting packet fits in the tunnel packet
+     buffer. If not, we drop it. */
+  if(ipv4len - IPV4_HDRLEN - UDP_HDRLEN + IPV6_HDRLEN > BUFSIZE) {
+    PRINTF("tunnel_decap: packet too big to fit in buffer, dropping\n");
+    return 0;
+  }
+
+  ipv6len = ipv4len - IPV4_HDRLEN - UDP_HDRLEN + IPV6_HDRLEN;
+
+  /* decapsulation, discard IPv4 and tunnel UDP headers. */
+  memcpy(resultpacket,
+	 &ipv4packet[IPV4_HDRLEN + UDP_HDRLEN],
+	 ipv4len - IPV4_HDRLEN - UDP_HDRLEN);
+  
   /* Finally, we return the length of the resulting IPv6 packet. */
   PRINTF("tunnel_decap: ipv6len %d\n", ipv6len);
   return ipv6len;
