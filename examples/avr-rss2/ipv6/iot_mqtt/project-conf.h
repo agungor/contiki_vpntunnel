@@ -56,7 +56,9 @@
 #define NETSTACK_CONF_RADIO       rf230_driver
 
 //#define MQTT_DEMO_BROKER_IP_ADDR "0064:ff9b::c010:7d27"
-#define MQTT_DEMO_BROKER_IP_ADDR "::ffff:c0a8:0197"
+//#define MQTT_DEMO_BROKER_IP_ADDR "::ffff:c0a8:0197"
+/KTH MQTT broker address 192.16.125.234
+#define MQTT_DEMO_BROKER_IP_ADDR "::ffff:c010:7dea"
 #define BOARD_STRING  "NODE_8263"
 #define RPL_CONF_DEFAULT_INSTANCE 0x1d
 #define IEEE802154_CONF_PANID 0xABCD

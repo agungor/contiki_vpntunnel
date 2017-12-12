@@ -66,17 +66,11 @@
 
 /*
  * Tunnel address configuration
- * \param TUNNEL_DST_ADDR0 The first octet of the IEP IP address.
- * \param TUNNEL_DST_ADDR1 The second octet of the IEP IP address.
- * \param TUNNEL_DST_ADDR2 The third octet of the IEP IP address.
- * \param TUNNEL_DST_ADDR3 The forth octet of the IEP IP address.
+ * \param TUNNEL_DST_ADDR  IEP IP address.
  * \param TUNNEL_SRC_PORT  UDP source port of tunnel
  * \param TUNNEL_DST_PORT  UDP destination port of tunnel
 */
-#define TUNNEL_DST_ADDR0 192
-#define TUNNEL_DST_ADDR1 168
-#define TUNNEL_DST_ADDR2 1
-#define TUNNEL_DST_ADDR3 151
+#define TUNNEL_DST_ADDR "192.168.1.151"
 #define TUNNEL_SRC_PORT  8000
 #define TUNNEL_DST_PORT  9000
 

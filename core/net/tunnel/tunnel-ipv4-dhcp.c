@@ -92,7 +92,7 @@ tunnel_dhcpc_configured(const struct tunnel_dhcpc_state *s)
     /* Note: Currently we assume only one DNS server */
     uip_ipaddr_t * dns = uip_nameserver_get(0);
     /* Only update DNS entry if it is empty or already IPv4 */
-    if(uip_is_addr_unspecified(dns) || tunnel_addr_is_tunnel(dns)) {
+    if(uip_is_addr_unspecified(dns) || tunnel_addr_is_64(dns)) {
       tunnel_addr_4to6((uip_ip4addr_t *)&s->dnsaddr, &ip6dnsaddr);
       uip_nameserver_update(&ip6dnsaddr, uip_ntohs(s->lease_time[0])*65536ul + uip_ntohs(s->lease_time[1]));
     }

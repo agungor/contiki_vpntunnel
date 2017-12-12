@@ -157,6 +157,7 @@ uint8_t *tunnel_packet_buffer = tunnel_packet_buffer_aligned.u8;
 uint16_t tunnel_packet_buffer_maxlen = BUFSIZE;
 
 static uip_ip4addr_t tunnel_hostaddr;
+static uip_ip4addr_t tunnel_destaddr;
 static uip_ip4addr_t tunnel_netmask;
 static uip_ip4addr_t tunnel_draddr;
 
@@ -187,6 +188,7 @@ tunnel_init(void)
   int i;
   uint8_t state;
 
+  uiplib_ip4addrconv(TUNNEL_DST_ADDR, (uip_ip4addr_t *)&tunnel_destaddr);
   uip_ipaddr(&ipv4_broadcast_addr, 255,255,255,255);
   tunnel_hostaddr_configured = 0;
 
@@ -363,6 +365,184 @@ ipv6_transport_checksum(const uint8_t *packet, uint16_t len, uint8_t proto)
 }
 /*---------------------------------------------------------------------------*/
 int
+local_packet_6to4(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
+		uint8_t *resultpacket)
+{
+	struct ipv4_hdr *v4hdr;
+	struct ipv6_hdr *v6hdr;
+	struct udp_hdr *udphdr;
+	struct tcp_hdr *tcphdr;
+	struct icmpv4_hdr *icmpv4hdr;
+	struct icmpv6_hdr *icmpv6hdr;
+	uint16_t ipv6len, ipv4len;
+	v6hdr = (struct ipv6_hdr *)ipv6packet;
+	v4hdr = (struct ipv4_hdr *)resultpacket;
+
+	if((v6hdr->len[0] << 8) + v6hdr->len[1] <= ipv6packet_len) {
+		ipv6len = (v6hdr->len[0] << 8) + v6hdr->len[1] + IPV6_HDRLEN;
+	} else {
+		PRINTF("local_packet_6to4: packet smaller than reported in IPv6 header, dropping\n");
+		return 0;
+	}
+
+	/* We copy the data from the IPv6 packet into the IPv4 packet. We do
+	     not modify the data in any way. */
+	PRINTF("local_packet_6to4: packet received\n");
+
+	memcpy(&resultpacket[IPV4_HDRLEN],
+			&ipv6packet[IPV6_HDRLEN],
+			ipv6len - IPV6_HDRLEN);
+
+	udphdr = (struct udp_hdr *)&resultpacket[IPV4_HDRLEN];
+	tcphdr = (struct tcp_hdr *)&resultpacket[IPV4_HDRLEN];
+	icmpv4hdr = (struct icmpv4_hdr *)&resultpacket[IPV4_HDRLEN];
+	icmpv6hdr = (struct icmpv6_hdr *)&ipv6packet[IPV6_HDRLEN];
+
+	/* Translate the IPv6 header into an IPv4 header. */
+
+	/* First the basics: the IPv4 version, header length, type of
+	     service, and offset fields. Those are the same for all IPv4
+	     packets we send, regardless of the values found in the IPv6
+	     packet. */
+	v4hdr->vhl = 0x45;
+	v4hdr->tos = 0;
+	v4hdr->ipoffset[0] = v4hdr->ipoffset[1] = 0;
+
+	/* We assume that the IPv6 packet has a fixed size header with no
+	     extension headers, and compute the length of the IPv4 packet and
+	     place the resulting value in the IPv4 packet header. */
+	ipv4len = ipv6len - IPV6_HDRLEN + IPV4_HDRLEN;
+	v4hdr->len[0] = ipv4len >> 8;
+	v4hdr->len[1] = ipv4len & 0xff;
+
+	/* For simplicity, we set a unique IP id for each outgoing IPv4
+	     packet. */
+	ipid++;
+	v4hdr->ipid[0] = ipid >> 8;
+	v4hdr->ipid[1] = ipid & 0xff;
+
+	/* Set the IPv4 protocol. We only support TCP, UDP, and ICMP at this
+	     point. While the IPv4 header protocol numbers are the same as the
+	     IPv6 next header numbers, the ICMPv4 and ICMPv6 numbers are
+	     different so we cannot simply copy the contents of the IPv6 next
+	     header field. */
+	uint8_t prototype = v6hdr->nxthdr;
+	switch(prototype) {
+	case IP_PROTO_TCP:
+		PRINTF("local_packet_6to4: TCP header\n");
+		v4hdr->proto = IP_PROTO_TCP;
+
+		/* Compute and check the TCP checksum - since we're going to
+	       recompute it ourselves, we must ensure that it was correct in
+	       the first place. */
+		if(ipv6_transport_checksum(ipv6packet, ipv6len,
+				IP_PROTO_TCP) != 0xffff) {
+			PRINTF("Bad TCP checksum, dropping packet\n");
+		}
+		break;
+
+	case IP_PROTO_UDP:
+		PRINTF("local_packet_6to4: UDP header\n");
+		v4hdr->proto = IP_PROTO_UDP;
+		if(ipv6_transport_checksum(ipv6packet, ipv6len,
+				IP_PROTO_UDP) != 0xffff) {
+			PRINTF("local_packet_6to4: Bad UDP checksum, dropping packet\n");
+		}
+		break;
+
+	case IP_PROTO_ICMPV6:
+		PRINTF("local_packet_6to4: ICMPv6 header\n");
+		v4hdr->proto = IP_PROTO_ICMPV4;
+		/* Translate only ECHO_REPLY messages. */
+		if(icmpv6hdr->type == ICMP6_ECHO_REPLY) {
+			icmpv4hdr->type = ICMP_ECHO_REPLY;
+		} else if(icmpv6hdr->type == ICMP6_ECHO) {
+			icmpv4hdr->type = ICMP_ECHO;
+		}
+		else{
+			PRINTF("local_packet_6to4: ICMPv6 mapping for type %d not implemented.\n",
+					icmpv6hdr->type);
+			return 0;
+		}
+		break;
+
+	default:
+		/* We did not recognize the next header, and we do not attempt to
+	       translate something we do not understand, so we return 0 to
+	       indicate that no successful translation could be made. */
+		PRINTF("local_packet_6to4: Could not convert IPv6 next hop %d to an IPv4 protocol number.\n",
+				v6hdr->nxthdr);
+		return 0;
+	}
+
+	/* We set the IPv4 ttl value to the hoplim number from the IPv6
+	     header. This means that information about the IPv6 topology is
+	     transported into to the IPv4 network. */
+	v4hdr->ttl = v6hdr->hoplim;
+
+
+	/* We next convert the destination address. We make this conversion
+	     with the tunnel_addr_6to4() function. If the conversion
+	     fails, tunnel_addr_6to4() returns 0. If so, we also return 0 to
+	     indicate failure. */
+	if(tunnel_addr_6to4(&v6hdr->destipaddr,
+			&v4hdr->destipaddr) == 0) {
+#if DEBUG
+		PRINTF("local_packet_6to4: Could not convert IPv6 destination address.\n");
+		uip_debug_ipaddr_print(&v6hdr->destipaddr);
+		PRINTF("\n");
+#endif /* DEBUG */
+		return 0;
+	}
+
+	/* We set the source address in the IPv4 packet to be the IPv4
+	     address that we have been configured with through the
+	     tunnel_set_ipv4_address() function. Only let broadcasts through. */
+	if(!tunnel_hostaddr_configured &&
+			!uip_ip4addr_cmp(&v4hdr->destipaddr, &ipv4_broadcast_addr)) {
+		PRINTF("local_packet_6to4: no IPv4 address configured.\n");
+		return 0;
+	}
+	tunnel_addr_copy4(&v4hdr->srcipaddr, &tunnel_hostaddr);
+	/* The IPv4 header is now complete, so we can compute the IPv4
+	       header checksum. */
+	v4hdr->ipchksum = 0;
+	v4hdr->ipchksum = ~(ipv4_checksum(v4hdr));
+
+	/* The checksum is in different places in the different protocol
+	       headers, so we need to be sure that we update the correct
+	       field. */
+	switch(v4hdr->proto) {
+	case IP_PROTO_TCP:
+		tcphdr->tcpchksum = 0;
+		tcphdr->tcpchksum = ~(ipv4_transport_checksum(resultpacket, ipv4len,
+				IP_PROTO_TCP));
+		break;
+	case IP_PROTO_UDP:
+		udphdr->udpchksum = 0;
+		udphdr->udpchksum = ~(ipv4_transport_checksum(resultpacket, ipv4len,
+				IP_PROTO_UDP));
+		if(udphdr->udpchksum == 0) {
+			udphdr->udpchksum = 0xffff;
+		}
+		break;
+	case IP_PROTO_ICMPV4:
+		icmpv4hdr->icmpchksum = 0;
+		icmpv4hdr->icmpchksum = ~(ipv4_transport_checksum(resultpacket, ipv4len,
+				IP_PROTO_ICMPV4));
+		break;
+
+	default:
+		PRINTF("local_packet_6to4: transport protocol %d not implemented\n", v4hdr->proto);
+		return 0;
+	}
+
+	/* Finally, we return the length of the resulting IPv4 packet. */
+	PRINTF("local_packet_6to4: ipv4len %d\n", ipv4len);
+	return ipv4len;
+}
+/*---------------------------------------------------------------------------*/
+int
 tunnel_encap(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
 	  uint8_t *resultpacket)
 {
@@ -370,10 +550,13 @@ tunnel_encap(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
   struct ipv6_hdr *v6hdr;
   struct udp_hdr *tunneludphdr;
   struct udp_hdr *udphdr;
-  struct tcp_hdr *tcphdr;
-  struct icmpv4_hdr *icmpv4hdr;
-  struct icmpv6_hdr *icmpv6hdr;
   uint16_t ipv6len, ipv4len;
+
+  udphdr = (struct udp_hdr *)&ipv6packet[IPV6_HDRLEN];
+
+  //handle packets in ephemeral port range locally (i.e. DHCP packet)
+  if(uip_ntohs(udphdr->srcport) < EPHEMERAL_PORTRANGE)
+	  return local_packet_6to4(ipv6packet, ipv6packet_len, resultpacket);
 
   v6hdr = (struct ipv6_hdr *)ipv6packet;
   v4hdr = (struct ipv4_hdr *)resultpacket;
@@ -387,18 +570,13 @@ tunnel_encap(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
 
   /* We copy the data from the IPv6 packet into the IPv4 packet. We do
      not modify the data in any way. */
-  //original packet ipv6 address 16 bytes
-  //original packet port address 2 bytes
   PRINTF("tunnel_encap: packet received\n");
 
-  memcpy(&resultpacket[IPV4_HDRLEN],
-	 &ipv6packet[IPV6_HDRLEN],
-	 ipv6len - IPV6_HDRLEN);
+  memcpy(&resultpacket[IPV4_HDRLEN+UDP_HDRLEN],
+	 ipv6packet,
+	 ipv6len);
 
-  udphdr = (struct udp_hdr *)&resultpacket[IPV4_HDRLEN];
-  tcphdr = (struct tcp_hdr *)&resultpacket[IPV4_HDRLEN];
-  icmpv4hdr = (struct icmpv4_hdr *)&resultpacket[IPV4_HDRLEN];
-  icmpv6hdr = (struct icmpv6_hdr *)&ipv6packet[IPV6_HDRLEN];
+  tunneludphdr = (struct udp_hdr *)&resultpacket[IPV4_HDRLEN];
 
   /* Translate the IPv6 header into an IPv4 header. */
 
@@ -410,189 +588,41 @@ tunnel_encap(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
   v4hdr->tos = 0;
   v4hdr->ipoffset[0] = v4hdr->ipoffset[1] = 0;
 
-  /* We assume that the IPv6 packet has a fixed size header with no
-     extension headers, and compute the length of the IPv4 packet and
-     place the resulting value in the IPv4 packet header. */
-  ipv4len = ipv6len - IPV6_HDRLEN + IPV4_HDRLEN;
-  v4hdr->len[0] = ipv4len >> 8;
-  v4hdr->len[1] = ipv4len & 0xff;
-
   /* For simplicity, we set a unique IP id for each outgoing IPv4
      packet. */
   ipid++;
   v4hdr->ipid[0] = ipid >> 8;
   v4hdr->ipid[1] = ipid & 0xff;
 
-  /* Set the IPv4 protocol. We only support TCP, UDP, and ICMP at this
-     point. While the IPv4 header protocol numbers are the same as the
-     IPv6 next header numbers, the ICMPv4 and ICMPv6 numbers are
-     different so we cannot simply copy the contents of the IPv6 next
-     header field. */
-  uint8_t prototype = v6hdr->nxthdr;
-  switch(prototype) {
-  case IP_PROTO_TCP:
-    PRINTF("tunnel_encap: TCP header\n");
-    v4hdr->proto = IP_PROTO_TCP;
-
-    /* Compute and check the TCP checksum - since we're going to
-       recompute it ourselves, we must ensure that it was correct in
-       the first place. */
-    if(ipv6_transport_checksum(ipv6packet, ipv6len,
-                               IP_PROTO_TCP) != 0xffff) {
-      PRINTF("Bad TCP checksum, dropping packet\n");
-    }
-    break;
-
-  case IP_PROTO_UDP:
-    PRINTF("tunnel_encap: UDP header\n");
-    v4hdr->proto = IP_PROTO_UDP;
-
-    /* Check if this is a DNS request. If so, we should rewrite it
-       with the DNS64 module. */
-    if(udphdr->destport == UIP_HTONS(DNS_PORT)) {
-      tunnel_dns64_6to4((uint8_t *)v6hdr + IPV6_HDRLEN + sizeof(struct udp_hdr),
-                      ipv6len - IPV6_HDRLEN - sizeof(struct udp_hdr),
-                      (uint8_t *)udphdr + sizeof(struct udp_hdr),
-                      BUFSIZE - IPV4_HDRLEN - sizeof(struct udp_hdr));
-    }
-    /* Compute and check the UDP checksum - since we're going to
-       recompute it ourselves, we must ensure that it was correct in
-       the first place. */
-    if(ipv6_transport_checksum(ipv6packet, ipv6len,
-                               IP_PROTO_UDP) != 0xffff) {
-      PRINTF("tunnel_encap: Bad UDP checksum, dropping packet\n");
-    }
-    break;
-
-  case IP_PROTO_ICMPV6:
-    PRINTF("tunnel_encap: ICMPv6 header\n");
-    v4hdr->proto = IP_PROTO_ICMPV4;
-    /* Translate only ECHO_REPLY messages. */
-    if(icmpv6hdr->type == ICMP6_ECHO_REPLY) {
-      icmpv4hdr->type = ICMP_ECHO_REPLY;
-    } else if(icmpv6hdr->type == ICMP6_ECHO) {
-    	icmpv4hdr->type = ICMP_ECHO;
-    }
-    else{
-      PRINTF("tunnel_encap: ICMPv6 mapping for type %d not implemented.\n",
-	     icmpv6hdr->type);
-      return 0;
-    }
-    break;
-
-  default:
-    /* We did not recognize the next header, and we do not attempt to
-       translate something we do not understand, so we return 0 to
-       indicate that no successful translation could be made. */
-    PRINTF("tunnel_encap: Could not convert IPv6 next hop %d to an IPv4 protocol number.\n",
-	   v6hdr->nxthdr);
-    return 0;
-  }
-
   /* We set the IPv4 ttl value to the hoplim number from the IPv6
      header. This means that information about the IPv6 topology is
      transported into to the IPv4 network. */
   v4hdr->ttl = v6hdr->hoplim;
 
-
-  /* We next convert the destination address. We make this conversion
-     with the tunnel_addr_6to4() function. If the conversion
-     fails, tunnel_addr_6to4() returns 0. If so, we also return 0 to
-     indicate failure. */
-  if(tunnel_addr_6to4(&v6hdr->destipaddr,
-		    &v4hdr->destipaddr) == 0) {
-#if DEBUG
-    PRINTF("tunnel_encap: Could not convert IPv6 destination address.\n");
-    uip_debug_ipaddr_print(&v6hdr->destipaddr);
-    PRINTF("\n");
-#endif /* DEBUG */
-    return 0;
-  }
-
-  /* We set the source address in the IPv4 packet to be the IPv4
-     address that we have been configured with through the
-     tunnel_set_ipv4_address() function. Only let broadcasts through. */
-  if(!tunnel_hostaddr_configured &&
-     !uip_ip4addr_cmp(&v4hdr->destipaddr, &ipv4_broadcast_addr)) {
-    PRINTF("tunnel_encap: no IPv4 address configured.\n");
-    return 0;
-  }
+  //set 6EP source ipv4 address
   tunnel_addr_copy4(&v4hdr->srcipaddr, &tunnel_hostaddr);
+  //set IEP ipv4 address
+  tunnel_addr_copy4(&v4hdr->destipaddr, &tunnel_destaddr);
 
+  ipv4len = IPV4_HDRLEN + UDP_HDRLEN + ipv6len;
+  v4hdr->len[0] = ipv4len >> 8;
+  v4hdr->len[1] = ipv4len & 0xff;
+  v4hdr->proto = IP_PROTO_UDP;
 
-  /* Next we update the transport layer header. This must be updated
-     in two ways: the source/dest addr and port number will be changed
-     and the transport layer checksum must be recomputed. Source address/port
-     and destination address/port will be obtained from the decapsulated
-     tunnel data.
-  */
-
-  if((uip_ntohs(udphdr->srcport) >= EPHEMERAL_PORTRANGE))
-  {
-	  //set IEP ipv4 address
-	  tunnel_addr_set_dest(&v4hdr->destipaddr, TUNNEL_DST_ADDR0, TUNNEL_DST_ADDR1, TUNNEL_DST_ADDR2, TUNNEL_DST_ADDR3);
-
-	  ipv4len += IPV6_HDRLEN + UDP_HDRLEN;
-	  v4hdr->len[0] = ipv4len >> 8;
-	  v4hdr->len[1] = ipv4len & 0xff;
-	  v4hdr->proto = IP_PROTO_UDP;
-
-	  //allocate space for tunneludp header after IPv4 header so tunneludp header can fit
-	  memmove(&resultpacket[IPV4_HDRLEN+IPV6_HDRLEN+UDP_HDRLEN],
-	  	 &resultpacket[IPV4_HDRLEN],
-	  	 ipv6len - IPV6_HDRLEN);
-
-	  tunneludphdr = (struct udp_hdr *)&resultpacket[IPV4_HDRLEN];
-	  //set ipv4 tunnel packet udp packet source & dest port
-	  tunneludphdr->srcport = uip_htons(TUNNEL_SRC_PORT);
-	  tunneludphdr->destport = uip_htons(TUNNEL_DST_PORT);
-	  tunneludphdr->udplen = uip_htons(ipv4len-IPV4_HDRLEN);
-
-	  //insert tunneludp header
-	  memcpy(&resultpacket[IPV4_HDRLEN],
-			  tunneludphdr,
-	  			  UDP_HDRLEN);
-	  //insert original IPv6 header coming from node
-	  memcpy(&resultpacket[IPV4_HDRLEN+UDP_HDRLEN],
-	  			  v6hdr,
-				  IPV6_HDRLEN);
+  tunneludphdr = (struct udp_hdr *)&resultpacket[IPV4_HDRLEN];
+  //set ipv4 tunnel packet udp packet source & dest port
+  tunneludphdr->srcport = uip_htons(TUNNEL_SRC_PORT);
+  tunneludphdr->destport = uip_htons(TUNNEL_DST_PORT);
+  tunneludphdr->udplen = uip_htons(ipv4len-IPV4_HDRLEN);
+  tunneludphdr->udpchksum = 0;
+  tunneludphdr->udpchksum = ~(ipv4_transport_checksum(resultpacket, ipv4len, IP_PROTO_UDP));
+  if(tunneludphdr->udpchksum == 0) {
+	  tunneludphdr->udpchksum = 0xffff;
   }
-  else
-	  PRINTF("packet in EPHEMERAL_PORTRANGE srcport: %d\n", uip_ntohs(udphdr->srcport));
-
-
   /* The IPv4 header is now complete, so we can compute the IPv4
        header checksum. */
-    v4hdr->ipchksum = 0;
-    v4hdr->ipchksum = ~(ipv4_checksum(v4hdr));
-
-    /* The checksum is in different places in the different protocol
-       headers, so we need to be sure that we update the correct
-       field. */
-    switch(v4hdr->proto) {
-    case IP_PROTO_TCP:
-      tcphdr->tcpchksum = 0;
-      tcphdr->tcpchksum = ~(ipv4_transport_checksum(resultpacket, ipv4len,
-  						  IP_PROTO_TCP));
-      break;
-    case IP_PROTO_UDP:
-      udphdr->udpchksum = 0;
-      udphdr->udpchksum = ~(ipv4_transport_checksum(resultpacket, ipv4len,
-  						  IP_PROTO_UDP));
-      if(udphdr->udpchksum == 0) {
-        udphdr->udpchksum = 0xffff;
-      }
-      break;
-    case IP_PROTO_ICMPV4:
-      icmpv4hdr->icmpchksum = 0;
-      icmpv4hdr->icmpchksum = ~(ipv4_transport_checksum(resultpacket, ipv4len,
-  						      IP_PROTO_ICMPV4));
-      break;
-
-    default:
-      PRINTF("tunnel_encap: transport protocol %d not implemented\n", v4hdr->proto);
-      return 0;
-    }
+  v4hdr->ipchksum = 0;
+  v4hdr->ipchksum = ~(ipv4_checksum(v4hdr));
 
   /* Finally, we return the length of the resulting IPv4 packet. */
   PRINTF("tunnel_encap: ipv4len %d\n", ipv4len);

@@ -81,7 +81,7 @@ tunnel_addr_6to4(const uip_ip6addr_t *ipv6addr,
      returns 0 if it failed to convert the address and non-zero if it
      could successfully convert the address. */
 
-  if(tunnel_addr_is_tunnel(ipv6addr)) {
+  if(tunnel_addr_is_64(ipv6addr)) {
     ipv4addr->u8[0] = ipv6addr->u8[12];
     ipv4addr->u8[1] = ipv6addr->u8[13];
     ipv4addr->u8[2] = ipv6addr->u8[14];
@@ -119,7 +119,7 @@ tunnel_addr_set_dest(uip_ip4addr_t *ipv4addr, uint8_t addr0, uint8_t addr1, uint
 }
 /*---------------------------------------------------------------------------*/
 int
-tunnel_addr_is_tunnel(const uip_ip6addr_t *ipv6addr)
+tunnel_addr_is_64(const uip_ip6addr_t *ipv6addr)
 {
   return uip_ipaddr_prefixcmp(ipv6addr, &tunnel_prefix, tunnel_prefix_len);
 }

@@ -58,7 +58,7 @@ int tunnel_addr_6to4(const uip_ip6addr_t *ipv6addr,
 int tunnel_addr_4to6(const uip_ip4addr_t *ipv4addr,
 		   uip_ip6addr_t *ipv6addr);
 
-int tunnel_addr_is_tunnel(const uip_ip6addr_t *ipv6addr);
+int tunnel_addr_is_64(const uip_ip6addr_t *ipv6addr);
 
 void tunnel_addr_set_prefix(const uip_ip6addr_t *prefix, uint8_t prefix_len);
 
