@@ -39,7 +39,7 @@
 
 #include <stdio.h>
 
-#define DEBUG 1
+#define DEBUG 0
 #include "net/ip/uip-debug.h"
 
 PROCESS(ip64_ipv4_dhcp_process, "IPv4 DHCP");

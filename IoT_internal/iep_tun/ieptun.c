@@ -152,18 +152,20 @@ int main(int argc, char *argv[])
 		if (select(fd+s+1, &fdset,NULL,NULL,NULL) < 0) PERROR("select");
 		if (FD_ISSET(fd, &fdset)) {
 			//read packet from tun interface
-			if (DEBUG) write(1,">", 1);
+			//if (DEBUG) write(1,">", 1);
 			l = read(fd, bufin, sizeof(bufin));
 			//packet received from internet translate to IPv6 packet
 			if (l < 0) PERROR("read");
 		    l = ip64_4to6(bufin, l, bufout);
 			if (sendto(s, bufout, l, 0, (struct sockaddr *)&from, fromlen) < 0) PERROR("sendto");
 		} else {
-			if (DEBUG) write(1,"<", 1);
+			//if (DEBUG) write(1,"<", 1);
 			l = recvfrom(s, &bufin, (sizeof(bufin)), 0, (struct sockaddr *)&sout, &soutlen);
+			printf("recvfrom l:%d\n",l);
 			//packet received from 6EP translate to IPv4 packet
 			l = ip64_6to4(bufin, l, &bufout[offset]);
 			//write resulting packet to tun interface
+			printf("write fd:%d l:%d\n", fd,l);
 			if (write(fd, bufout, l+offset) < 0) PERROR("write");
 		}
 	}

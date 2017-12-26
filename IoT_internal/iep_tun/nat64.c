@@ -49,7 +49,7 @@ static uint8_t ip64_prefix_len = 96;
 
 static uip_ip4addr_t ip64_hostaddr;
 static uip_ip4addr_t ip64_netmask;
-static uip_ip4addr_t ip64_draddr;
+static uip_ip4addr_t ip64_addr;
 
 static uint16_t ipid;
 static uint8_t ip64_hostaddr_configured = 0;
@@ -80,6 +80,53 @@ nat64_init(void)
   PRINTF("nat64_init\n");
 }
 /*---------------------------------------------------------------------------*/
+void
+ip6addr_print(const uip_ip6addr_t *addr)
+{
+
+  uint16_t a;
+  unsigned int i;
+  int f;
+
+  if(addr == 0) {
+    PRINTF("(NULL IP addr)");
+    return;
+  }
+
+  if(ip64_addr_is_ipv4_mapped_addr(addr)) {
+    /*
+     * Printing IPv4-mapped addresses is done according to RFC 4291 [1]
+     *
+     *     "An alternative form that is sometimes more
+     *     convenient when dealing with a mixed environment
+     *     of IPv4 and IPv6 nodes is x:x:x:x:x:x:d.d.d.d,
+     *     where the 'x's are the hexadecimal values of the
+     *     six high-order 16-bit pieces of the address, and
+     *     the 'd's are the decimal values of the four
+     *     low-order 8-bit pieces of the address (standard
+     *     IPv4 representation)."
+     *
+     * [1] https://tools.ietf.org/html/rfc4291#page-4
+     */
+    PRINTF("::FFFF:%u.%u.%u.%u", addr->u8[12], addr->u8[13], addr->u8[14], addr->u8[15]);
+  } else {
+    for(i = 0, f = 0; i < sizeof(uip_ip6addr_t); i += 2) {
+      a = (addr->u8[i] << 8) + addr->u8[i + 1];
+      if(a == 0 && f >= 0) {
+        if(f++ == 0) {
+          PRINTF("::");
+        }
+      } else {
+        if(f > 0) {
+          f = -1;
+        } else if(i > 0) {
+          PRINTF(":");
+        }
+        PRINTF("%x", a);
+      }
+	}
+  }
+}
 /*---------------------------------------------------------------------------*/
 void
 ip64_set_hostaddr(const uip_ip4addr_t *hostaddr)
@@ -160,6 +207,9 @@ ip64_addr_6to4(const uip_ip6addr_t *ipv6addr,
     /* Conversion succeeded, we return non-zero. */
     return 1;
   }
+  printf("ip64_addr_6to4: could not convert the IPv6 address ");
+  ip6addr_print(ipv6addr);
+  printf("\n");
   /* We could not convert the IPv6 address, so we return 0. */
   return 0;
 }
@@ -282,7 +332,6 @@ ip64_6to4(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
 
   v6hdr = (struct ipv6_hdr *)ipv6packet;
   v4hdr = (struct ipv4_hdr *)resultpacket;
-
   if((v6hdr->len[0] << 8) + v6hdr->len[1] <= ipv6packet_len) {
     ipv6len = (v6hdr->len[0] << 8) + v6hdr->len[1] + IPV6_HDRLEN;
   } else {
@@ -361,7 +410,6 @@ ip64_6to4(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
 	   v6hdr->nxthdr);
     return 0;
   }
-
   /* We set the IPv4 ttl value to the hoplim number from the IPv6
      header. This means that information about the IPv6 topology is
      transported into to the IPv4 network. */
@@ -380,7 +428,8 @@ ip64_6to4(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
 #endif /* DEBUG */
     return 0;
   }
-
+  //uip_ipaddr(&v4hdr->destipaddr, 192, 168, 10, 167);
+  uip_ipaddr(&v4hdr->destipaddr, 172, 16, 177, 145);
   ip64_addr_copy4(&v4hdr->srcipaddr, &ip64_hostaddr);
 
   /* Next we update the transport layer header. This must be updated
@@ -485,7 +534,6 @@ ip64_6to4(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
   }
 #endif //TOBEIMPLEMENTED
 
-
   /* The IPv4 header is now complete, so we can compute the IPv4
      header checksum. */
   v4hdr->ipchksum = 0;
@@ -518,7 +566,6 @@ ip64_6to4(const uint8_t *ipv6packet, const uint16_t ipv6packet_len,
     PRINTF("ip64_6to4: transport protocol %d not implemented\n", v4hdr->proto);
     return 0;
   }
-
   /* Finally, we return the length of the resulting IPv4 packet. */
   PRINTF("ip64_6to4: ipv4len %d\n", ipv4len);
   return ipv4len;
@@ -695,6 +742,7 @@ ip64_4to6(const uint8_t *ipv4packet, const uint16_t ipv4packet_len,
 #else
 	//node ip address hardcoded temporarily (to be removed when addrmap completed)
 	uip_ip6addr(&v6hdr->destipaddr, 0xfd00, 0, 0, 0, 0xfec2, 0x3d00, 0x0001, 0x8344);
+	//uip_ip6addr(&v6hdr->destipaddr, 0xfd00, 0, 0, 0, 0xfec2, 0x3d00, 0x0001, 0x8263);
 #endif
       }
     }
@@ -733,5 +781,6 @@ ip64_4to6(const uint8_t *ipv4packet, const uint16_t ipv4packet_len,
 
   /* Finally, we return the length of the resulting IPv6 packet. */
   PRINTF("ip64_4to6: ipv6len %d\n", ipv6len);
+  printf("ip64_4to6: ipv6len %d\n", ipv6len);
   return ipv6len;
 }

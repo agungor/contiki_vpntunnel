@@ -56,7 +56,7 @@
 
 #define BUFSIZE 600
 
-#define PRINTF(...) printf(__VA_ARGS__)
+#define PRINTF printf
 
 #ifndef uip_ipaddr_copy
 #define uip_ipaddr_copy(dest, src) (*(dest) = *(src))
@@ -132,6 +132,14 @@ typedef unsigned int   PointerType;
  * \hideinitializer
  */
 #define uip_ipaddr_to_quad(a) (a)->u8[0],(a)->u8[1],(a)->u8[2],(a)->u8[3]
+
+#define ip64_addr_is_ipv4_mapped_addr(a) \
+  ((((a)->u16[0])  == 0) &&              \
+   (((a)->u16[1])  == 0) &&              \
+   (((a)->u16[2])  == 0) &&              \
+   (((a)->u16[3])  == 0) &&              \
+   (((a)->u16[4])  == 0) &&              \
+   (((a)->u16[5])  == 0xFFFF))
 
 struct tcp_hdr {
   uint16_t srcport;
