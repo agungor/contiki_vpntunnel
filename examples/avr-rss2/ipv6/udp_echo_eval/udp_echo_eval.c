@@ -49,7 +49,7 @@
 
 #define UDP_EXAMPLE_ID  190
 
-#define DEBUG DEBUG_FULL
+#define DEBUG DEBUG_NONE
 #include "net/ip/uip-debug.h"
 
 #ifndef PERIOD
@@ -60,7 +60,7 @@
 #define END_TIME	1
 
 #define NUMBER_OF_PACKETS	100
-#define WAIT_INIT			(15 * CLOCK_SECOND)
+#define WAIT_INIT			(30 * CLOCK_SECOND)
 #define MAX_PAYLOAD_LEN		30
 
 static struct etimer periodic;
@@ -83,7 +83,7 @@ tcpip_handler(void)
   if(uip_newdata()) {
 	reply_seq_id = (int*)uip_appdata;
     eval_array[*reply_seq_id][END_TIME] = RTIMER_NOW();
-    printf("DATA recv seq_id:%d elapsed time: %d\n", *reply_seq_id, (int)eval_array[*reply_seq_id][END_TIME] - (int)eval_array[*reply_seq_id][START_TIME]);
+    PRINTF("DATA recv seq_id:%d elapsed time: %d\n", *reply_seq_id, (int)eval_array[*reply_seq_id][END_TIME] - (int)eval_array[*reply_seq_id][START_TIME]);
   }
 }
 /*---------------------------------------------------------------------------*/
@@ -112,19 +112,25 @@ send_packet(/*void *ptr*/)
 	  seq_id++;
   else {
 	  int i;
+	  rtimer_clock_t elapsed_time;
 	  printf("Packet Per Second: %d clock:%d\n", curr_pps, CLOCK_SECOND/curr_pps);
+	  printf("SEQ:START:END:ELAPSED\n");
 	  for(i=0; i < NUMBER_OF_PACKETS; i++) {
-		  printf("%d:%lu:%lu\n", i, (unsigned long)eval_array[i][0], (unsigned long)eval_array[i][1]);
+
+		  elapsed_time = eval_array[i][1] ? (eval_array[i][1] - eval_array[i][0]) : 0;
+		  printf("%d:%lu:%lu:%lu\n", i, (unsigned long)eval_array[i][0], (unsigned long)eval_array[i][1], (unsigned long)elapsed_time);
 	  }
 	  seq_id = 0;
 	  memset(eval_array, 0, 2*NUMBER_OF_PACKETS*sizeof(eval_array[0][0]));
 	  if(curr_pps != CLOCK_SECOND)
 	  {
-		  printf("Prev Packet Per Second:%d clock:%d\n", curr_pps, CLOCK_SECOND/curr_pps);
+		  PRINTF("Prev Packet Per Second:%d clock:%d\n", curr_pps, CLOCK_SECOND/curr_pps);
 		  curr_pps = curr_pps*2;
 		  etimer_set(&periodic, CLOCK_SECOND/curr_pps);
-		  printf("Curr Packet Per Second:%d clock:%d\n", curr_pps, CLOCK_SECOND/curr_pps);
+		  PRINTF("Curr Packet Per Second:%d clock:%d\n", curr_pps, CLOCK_SECOND/curr_pps);
 	  }
+	  else
+		  etimer_stop(&periodic);
   }
   PRINTF("DATA send to ");
   PRINT6ADDR(&server_ipaddr);
