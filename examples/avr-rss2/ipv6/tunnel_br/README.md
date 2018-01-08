@@ -1,17 +1,14 @@
-Document version: 2016-02-22
+Document version: 2018-01-07
 
-An ethernet-to-802.15.4 NAT/GW IP64
+Distributed Border Router (DBR)
+6LowPAN End Point (6EP)
 ===================================
 
 This project is heavily based on the rpl-border-router in the example directory
-using the IP64 framework. This work is done Contiki/Thingsquare as the driver 
-for enc28j60.
+of avr-rss2. enc28j60 is used for ethernet driver. 
 
-But rather than using slip as in the original example an ethernet interface 
-the Microchip enc28j60 is used. The needed SPI-glue for AtMega's is added by 
-this platform. (avr-rss2)
+The packets which needs to be routed to internet are sent to
+tunnel. IPv6 header and its payload packed into an IPv4 packet and sent to Internet
+End Point (IEP). IEP code is available under /IoT_internal/iep_tun.
 
-See the README.ETHERNET.md for ethernet module info.
-
-
-
+A UDP tunnel is established between 6EP and IEP.
